@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '@/env'
+import type { Database } from './types'
 
 /**
  * Supabase client authenticated with the service-role key.
@@ -15,7 +16,7 @@ import { env } from '@/env'
  * the browser. The `server-only` import makes such a mistake a build error.
  */
 export function createAdminSupabaseClient() {
-  return createClient(
+  return createClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.SUPABASE_SERVICE_ROLE_KEY,
     {

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { env } from '@/env'
+import type { Database } from './types'
 
 /**
  * Supabase client authenticated as the current Clerk user (RLS-scoped).
@@ -22,7 +23,7 @@ import { env } from '@/env'
 export async function createClerkSupabaseClient() {
   const { getToken } = await auth()
 
-  return createClient(
+  return createClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
