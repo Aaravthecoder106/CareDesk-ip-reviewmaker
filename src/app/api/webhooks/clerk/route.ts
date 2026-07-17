@@ -30,8 +30,10 @@ export async function POST(req: NextRequest) {
     case 'user.updated': {
       const result = await provisionUser(admin, fromUserJSON(evt.data))
       if (!result.ok) {
-        // 500 so Clerk retries with backoff.
-        return new Response(`Provisioning failed: ${result.error}`, { status: 500 })
+        // Log detail server-side only; return a generic 500 so Clerk retries
+        // with backoff without leaking internal schema/constraint text (M2).
+        console.error(`[clerk webhook] provisioning failed: ${result.error}`)
+        return new Response('provisioning failed', { status: 500 })
       }
       return new Response('ok', { status: 200 })
     }
@@ -39,7 +41,8 @@ export async function POST(req: NextRequest) {
       if (!evt.data.id) return new Response('ok', { status: 200 })
       const result = await deprovisionUser(admin, evt.data.id)
       if (!result.ok) {
-        return new Response(`Deprovisioning failed: ${result.error}`, { status: 500 })
+        console.error(`[clerk webhook] deprovisioning failed: ${result.error}`)
+        return new Response('deprovisioning failed', { status: 500 })
       }
       return new Response('ok', { status: 200 })
     }

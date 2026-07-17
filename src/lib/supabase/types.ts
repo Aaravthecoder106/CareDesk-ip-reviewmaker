@@ -496,6 +496,21 @@ export type Database = {
         };
         Relationships: [];
       };
+      deleted_users: {
+        Row: {
+          id: string;
+          deleted_at: string;
+        };
+        Insert: {
+          id: string;
+          deleted_at?: string;
+        };
+        Update: {
+          id?: string;
+          deleted_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

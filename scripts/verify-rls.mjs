@@ -14,6 +14,7 @@
  * Usage (PowerShell / bash):
  *   SUPABASE_URL=... SUPABASE_ANON_KEY=... \
  *   USER_A_JWT=<clerk session token for A> \
+ *   USER_A_ID=<clerk id of A> \
  *   USER_B_JWT=<clerk session token for B> \
  *   USER_B_ID=<clerk id of B> \
  *   node scripts/verify-rls.mjs
@@ -26,6 +27,7 @@ const {
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
   USER_A_JWT,
+  USER_A_ID,
   USER_B_JWT,
   USER_B_ID,
 } = process.env
@@ -34,6 +36,7 @@ for (const [k, v] of Object.entries({
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
   USER_A_JWT,
+  USER_A_ID,
   USER_B_JWT,
   USER_B_ID,
 })) {
@@ -75,14 +78,24 @@ const check = (name, passed, detail = '') => {
   check('A cannot read B reports', !error && (data?.length ?? 0) === 0, error?.message)
 }
 
-// 4. A cannot self-promote role (column not granted -> update blocked/no-op).
+// 4. A cannot self-promote their OWN role (column `role` is excluded from the
+//    authenticated UPDATE grant). Targeting A's own id passes the RLS row USING
+//    check, so this actually exercises the column-grant escalation guard —
+//    unlike targeting B's id, which RLS blocks before the grant is reached.
 {
-  const { error } = await a.from('users').update({ role: 'admin' }).eq('id', USER_B_ID)
-  // Either an explicit error, or zero rows affected; re-read to be sure.
-  const { data: check4 } = await b.from('users').select('role').limit(1)
+  const { error } = await a
+    .from('users')
+    .update({ role: 'admin' })
+    .eq('id', USER_A_ID)
+  // Re-read A's own role through A's client to confirm it did NOT change.
+  const { data: check4 } = await a
+    .from('users')
+    .select('role')
+    .eq('id', USER_A_ID)
+    .maybeSingle()
   check(
-    'A cannot escalate B role to admin',
-    (check4?.[0]?.role ?? 'patient') !== 'admin',
+    'A cannot self-escalate own role to admin',
+    (check4?.role ?? 'patient') !== 'admin',
     error?.message,
   )
 }
