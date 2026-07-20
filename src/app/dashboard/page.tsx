@@ -1,66 +1,85 @@
 import { ensureCurrentUserProvisioned, getCurrentPatient } from '@/lib/data/users'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  FolderOpen,
+  MessageSquare,
+  BarChart3,
+  Users,
+} from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Minimal authenticated round-trip verification surface (Phase 1).
- *
- * Proves: Sign Up -> User Sync -> Database Row -> Read Own Data.
- *   1. Middleware guarantees the caller is authenticated by Clerk.
- *   2. ensureCurrentUserProvisioned() reads the caller's public.users row via
- *      RLS, self-healing it from the live Clerk profile if the webhook has not
- *      yet landed.
- *   3. getCurrentPatient() reads the auto-provisioned patients row via RLS.
- * Both reads are RLS-scoped, so this page can only ever display the caller's
- * own data.
- *
- * This is a scaffold to validate the identity pipeline end to end; the real
- * dashboard UI is ported in a later phase.
- */
+const quickActions = [
+  {
+    icon: FolderOpen,
+    title: 'Report Library',
+    description: 'Upload and manage your medical reports',
+    href: '/dashboard/reports',
+  },
+  {
+    icon: MessageSquare,
+    title: 'AI Chat',
+    description: 'Ask questions about your health data',
+    href: '/dashboard/chat',
+  },
+  {
+    icon: BarChart3,
+    title: 'Analytics',
+    description: 'View interactive health visualizations',
+    href: '/dashboard/analytics',
+  },
+  {
+    icon: Users,
+    title: 'Family',
+    description: 'Share insights with family members',
+    href: '/dashboard/family',
+  },
+]
+
 export default async function DashboardPage() {
   const user = await ensureCurrentUserProvisioned()
   const patient = await getCurrentPatient()
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-2 text-sm text-gray-500">
-        Identity round-trip check — this data is read through Row Level Security
-        and is scoped to your account only.
-      </p>
+    <div className="p-6 lg:p-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold">
+          Welcome{user?.first_name ? `, ${user.first_name}` : ''}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Here&apos;s an overview of your health dashboard.
+        </p>
+      </div>
 
-      <section className="mt-6 rounded-lg border p-4">
-        <h2 className="font-medium">public.users</h2>
-        {user ? (
-          <dl className="mt-2 grid grid-cols-[8rem_1fr] gap-1 text-sm">
-            <dt className="text-gray-500">id</dt>
-            <dd className="font-mono">{user.id}</dd>
-            <dt className="text-gray-500">email</dt>
-            <dd>{user.email}</dd>
-            <dt className="text-gray-500">name</dt>
-            <dd>
-              {[user.first_name, user.last_name].filter(Boolean).join(' ') || '—'}
-            </dd>
-            <dt className="text-gray-500">role</dt>
-            <dd>{user.role}</dd>
-          </dl>
-        ) : (
-          <p className="mt-2 text-sm text-amber-600">
-            No user row yet — provisioning may still be in progress.
-          </p>
-        )}
-      </section>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {quickActions.map((action) => (
+          <Link key={action.href} href={action.href}>
+            <Card className="transition-colors hover:bg-muted/50">
+              <CardHeader>
+                <action.icon className="size-8 text-primary" />
+                <CardTitle className="text-sm">{action.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {action.description}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
 
-      <section className="mt-4 rounded-lg border p-4">
-        <h2 className="font-medium">public.patients</h2>
-        {patient ? (
-          <p className="mt-2 text-sm text-green-600">
-            Patient profile provisioned (id <span className="font-mono">{patient.id}</span>).
-          </p>
-        ) : (
-          <p className="mt-2 text-sm text-amber-600">No patient profile found.</p>
-        )}
-      </section>
-    </main>
+      {!patient && (
+        <Card className="mt-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+          <CardContent className="pt-6">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Your patient profile is still being set up. This usually takes a
+              few seconds.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }

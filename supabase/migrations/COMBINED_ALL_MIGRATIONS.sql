@@ -512,3 +512,61 @@ CREATE POLICY "reports storage upload own" ON storage.objects
 CREATE POLICY "reports storage delete own" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'reports' AND public.clerk_user_id() = (storage.foldername(name))[1]);
+
+
+-- =============================================================================
+-- 0001 — user provisioning safety net
+--
+-- Task 2 ("every new user automatically gets the correct patient profile") is
+-- primarily satisfied in application code (the Clerk webhook + self-heal both
+-- call provisionUser, which upserts the patients row). This trigger is a
+-- defence-in-depth guarantee at the data layer: ANY insert into public.users
+-- — webhook, self-heal, admin backfill, or manual SQL — auto-creates the
+-- matching patients row. Idempotent via ON CONFLICT DO NOTHING.
+--
+-- The app-side upsert is kept (not replaced): it lets provisioning report
+-- failures synchronously and works even if this trigger is ever dropped. The
+-- two layers converge on the same row without conflict.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.tg_provision_patient()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.patients (id)
+  VALUES (NEW.id)
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER tg_users_provision_patient
+  AFTER INSERT ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.tg_provision_patient();
+
+
+-- =============================================================================
+-- 0002 — deletion tombstone (webhook ordering guard)
+--
+-- Problem (H2): the Clerk webhook handler is stateless and idempotency rests
+-- solely on upsert-by-id. Clerk retries with backoff, so a `user.updated` that
+-- was delayed can land AFTER `user.deleted` for the same id and re-create the
+-- row (and, via migration 0001's trigger, the patients row) — resurrecting a
+-- deleted account.
+--
+-- This table records every deleted Clerk id. provisionUser() consults it and
+-- refuses to re-create a tombstoned id, so late `user.created/updated` events
+-- are acknowledged (200) but write nothing. Clerk never reuses ids and re-signup
+-- mints a fresh id, so a tombstone is safe to keep permanently.
+--
+-- Service-role only: there are no `authenticated` grants or policies, so clients
+-- can neither read nor write the tombstone. RLS is enabled to deny by default.
+-- =============================================================================
+CREATE TABLE public.deleted_users (
+  id         TEXT PRIMARY KEY,           -- Clerk user id that was deleted
+  deleted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+GRANT ALL ON public.deleted_users TO service_role;
+ALTER TABLE public.deleted_users ENABLE ROW LEVEL SECURITY;

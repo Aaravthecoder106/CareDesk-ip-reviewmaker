@@ -11,6 +11,7 @@ export const env = createEnv({
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
+    GEMINI_API_KEY: z.string().min(1).default('placeholder'),
   },
 
   /*
@@ -34,6 +35,7 @@ export const env = createEnv({
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SIGNING_SECRET: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
