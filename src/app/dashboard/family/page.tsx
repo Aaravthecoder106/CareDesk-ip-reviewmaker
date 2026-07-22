@@ -76,20 +76,27 @@ export default function FamilyPage() {
 
   async function handleInvite() {
     if (!inviteEmail.trim()) return
+    const sentTo = inviteEmail.trim()
     setInviting(true)
     setMessage('')
     try {
       const res = await fetch('/api/family/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, relation: inviteRelation || undefined }),
+        body: JSON.stringify({ email: sentTo, relation: inviteRelation || undefined }),
       })
       const data = await res.json()
       if (data.ok) {
         setInviteEmail('')
         setInviteRelation('')
         setShowInvite(false)
-        setMessage('Invite created. Share the invite code with your family member — they paste it below on their own Family page.')
+        if (data.emailSent) {
+          setMessage(`Invite sent to ${sentTo}! They'll receive the invite code in their inbox.`)
+        } else {
+          setMessage(
+            `Invite created for ${sentTo}. The email couldn't be sent — copy the invite code from Pending Invites below and share it with them.`
+          )
+        }
         fetchData(false)
       } else {
         setMessage(data.error || 'Invite failed')
@@ -178,15 +185,15 @@ export default function FamilyPage() {
   const unread = notifications.filter(n => !n.read_at)
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Family</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">Family</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Invite family members and share health insights.
           </p>
         </div>
-        <Button onClick={() => setShowInvite(true)}>
+        <Button onClick={() => setShowInvite(true)} className="w-full sm:w-auto">
           <UserPlus className="mr-2 size-4" />
           Invite Member
         </Button>
@@ -250,8 +257,8 @@ export default function FamilyPage() {
               <div className="space-y-2">
                 {notifications.slice(0, 8).map((n) => (
                   <Card key={n.id} className={n.read_at ? 'opacity-60' : ''}>
-                    <CardContent className="flex items-center justify-between py-3">
-                      <div>
+                    <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <p className="text-sm font-medium">{n.title}</p>
                         {n.body && <p className="text-xs text-muted-foreground">{n.body}</p>}
                         <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -259,7 +266,7 @@ export default function FamilyPage() {
                         </p>
                       </div>
                       {!n.read_at && (
-                        <Button variant="ghost" size="sm" onClick={() => handleMarkRead(n.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleMarkRead(n.id)} className="self-start sm:self-auto">
                           <Check className="mr-1 size-3" /> Read
                         </Button>
                       )}
@@ -310,10 +317,10 @@ export default function FamilyPage() {
               <div className="space-y-2">
                 {acceptedMembers.map((m) => (
                   <Card key={m.id}>
-                    <CardContent className="flex items-center justify-between py-3">
-                      <div className="flex items-center gap-3">
-                        <Check className="size-4 text-green-600" />
-                        <div>
+                    <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Check className="size-4 shrink-0 text-green-600" />
+                        <div className="min-w-0">
                           <p className="text-sm font-medium">
                             {m.display_name || m.relation || 'Family member'}
                           </p>
@@ -322,7 +329,7 @@ export default function FamilyPage() {
                           </p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleRemove(m.id)}>
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleRemove(m.id)} className="self-end sm:self-auto">
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </CardContent>
@@ -341,10 +348,10 @@ export default function FamilyPage() {
                   const iAmOwner = m.owner_id === user?.id
                   return (
                     <Card key={m.id}>
-                      <CardContent className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <Users className="size-4 text-amber-600" />
-                          <div>
+                      <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Users className="size-4 shrink-0 text-amber-600" />
+                          <div className="min-w-0">
                             <p className="text-sm font-medium">{m.relation || 'Family member'}</p>
                             <p className="text-xs text-muted-foreground">
                               {iAmOwner
@@ -353,7 +360,7 @@ export default function FamilyPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex shrink-0 gap-1 self-end sm:self-auto">
                           {iAmOwner && (
                             <Button size="sm" onClick={() => handleConfirm(m.id)}>
                               <Check className="mr-1 size-3" /> Confirm
@@ -378,17 +385,17 @@ export default function FamilyPage() {
               <div className="space-y-2">
                 {invites.map((inv) => (
                   <Card key={inv.id}>
-                    <CardContent className="flex items-center justify-between py-3">
-                      <div className="flex items-center gap-3">
-                        <Mail className="size-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{inv.email}</p>
+                    <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Mail className="size-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{inv.email}</p>
                           <p className="text-xs text-muted-foreground">
                             {inv.relation ? `${inv.relation} · ` : ''}Invited {new Date(inv.created_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => handleCopyToken(inv)}>
+                      <Button variant="outline" size="sm" onClick={() => handleCopyToken(inv)} className="w-full sm:w-auto">
                         <Copy className="mr-1 size-3" />
                         {copiedId === inv.id ? 'Copied!' : 'Copy invite code'}
                       </Button>

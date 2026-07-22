@@ -1,6 +1,7 @@
 import 'server-only'
 import { generateTextWithImages, parseJsonReply } from './gemini'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { regenerateAnalyticsForUser } from '@/lib/data/analytics'
 
 interface AnalysisResult {
   summary: string
@@ -133,6 +134,9 @@ export async function analyzeReport(
     // Family notifications: alert accepted family links about notable changes.
     await notifyFamilyOfFindings(admin, patientId, parsed).catch(() => {})
 
+    // Auto-regenerate analytics snapshot
+    await regenerateAnalyticsForUser(patientId).catch(() => {})
+
     return { ok: true, analysis: parsed }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Analysis failed'
@@ -152,10 +156,11 @@ async function notifyFamilyOfFindings(
   patientId: string,
   analysis: AnalysisResult
 ) {
-  const abnormal = analysis.labResults.filter(
-    (l) => l.flag && l.flag !== 'normal'
-  )
-  if (abnormal.length === 0) return
+  const abnormal = analysis.labResults.filter((l) => l.flag && l.flag !== 'normal')
+  const newMeds = analysis.medications.filter((m) => m.name)
+  const newConditions = analysis.conditions.filter((c) => c.name)
+
+  if (abnormal.length === 0 && newMeds.length === 0 && newConditions.length === 0) return
 
   const { data: links } = await admin
     .from('family_members')
@@ -168,10 +173,12 @@ async function notifyFamilyOfFindings(
     .from('users').select('first_name, email').eq('id', patientId).maybeSingle()
   const who = patient?.first_name || patient?.email || 'A family member'
 
-  const body = `${who} has new notable results: ${abnormal
-    .slice(0, 5)
-    .map((l) => `${l.test_name} (${l.flag})`)
-    .join(', ')}`
+  const updates = []
+  if (abnormal.length > 0) updates.push(`${abnormal.length} abnormal lab(s)`)
+  if (newMeds.length > 0) updates.push(`new medication(s)`)
+  if (newConditions.length > 0) updates.push(`new condition(s)`)
+
+  const body = `${who} has new notable results: ${updates.join(', ')}.`
 
   const targets = links
     .map((l) => (l.owner_id === patientId ? l.member_id : l.owner_id))

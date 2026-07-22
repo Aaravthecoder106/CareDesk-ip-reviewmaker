@@ -12,16 +12,16 @@ export function Header() {
         </Link>
 
         <Show when="signed-out">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
               href="/sign-in"
-              className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted"
+              className="inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-sm font-medium transition-colors hover:bg-muted sm:px-3"
             >
               Sign in
             </Link>
             <Link
               href="/sign-up"
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 sm:px-3"
             >
               Get started
             </Link>
@@ -29,12 +29,13 @@ export function Header() {
         </Show>
 
         <Show when="signed-in">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/dashboard"
-              className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted"
+              className="inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-sm font-medium transition-colors hover:bg-muted sm:px-3"
             >
-              Dashboard
+              <span className="hidden sm:inline">Dashboard</span>
+              <span className="sm:hidden">Home</span>
             </Link>
             <UserButton
               appearance={{

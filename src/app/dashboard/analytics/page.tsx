@@ -100,16 +100,16 @@ export default function AnalyticsPage() {
     : []
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Analytics</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">Analytics</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Interactive visualizations of your health data.
           </p>
         </div>
         {viewing === 'me' && (
-          <Button onClick={handleRegenerate} disabled={regenerating} variant="outline">
+          <Button onClick={handleRegenerate} disabled={regenerating} variant="outline" className="w-full sm:w-auto">
             {regenerating ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
@@ -161,7 +161,7 @@ export default function AnalyticsPage() {
       ) : (
         <>
           {/* Health Score */}
-          <div className="mb-6 grid gap-4 sm:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Health Score</CardTitle>

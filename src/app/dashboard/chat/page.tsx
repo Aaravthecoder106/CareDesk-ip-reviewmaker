@@ -108,16 +108,16 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full flex-col p-6 lg:p-8">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex h-full min-h-0 flex-col p-4 sm:p-6 lg:p-8">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">AI Chat</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">AI Chat</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Ask questions about your medical reports and health data.
           </p>
         </div>
         {messages.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={handleClear}>
+          <Button variant="ghost" size="sm" onClick={handleClear} className="self-start sm:self-auto">
             <Trash2 className="mr-2 size-4" />
             Clear
           </Button>
@@ -146,7 +146,7 @@ export default function ChatPage() {
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
+                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm sm:max-w-[80%] sm:px-4 ${
                       msg.role === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
@@ -167,7 +167,7 @@ export default function ChatPage() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t p-4">
+          <div className="border-t p-3 sm:p-4">
             {image && (
               <div className="mb-2 flex items-center gap-2">
                 <div className="relative">

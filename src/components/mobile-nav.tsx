@@ -11,6 +11,7 @@ import {
   BarChart3,
   Users,
   Settings,
+  Sparkles,
   Menu,
   X,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/dashboard/family', label: 'Family', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/upgrade', label: 'Upgrade', icon: Sparkles },
 ]
 
 export function MobileNav() {
@@ -31,8 +33,8 @@ export function MobileNav() {
   const pathname = usePathname()
 
   return (
-    <div className="lg:hidden">
-      <div className="flex items-center justify-between border-b px-4 py-2">
+    <div className="shrink-0 lg:hidden">
+      <div className="flex items-center justify-between border-b bg-background px-4 py-2.5">
         <Link href="/dashboard" className="font-semibold">
           CareDesk
         </Link>
@@ -46,6 +48,8 @@ export function MobileNav() {
             variant="ghost"
             size="icon-sm"
             onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-label={open ? 'Close menu' : 'Open menu'}
           >
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </Button>
@@ -53,7 +57,7 @@ export function MobileNav() {
       </div>
 
       {open && (
-        <nav className="border-b bg-background p-3 space-y-1">
+        <nav className="max-h-[60vh] overflow-y-auto border-b bg-background p-3 space-y-1">
           {navItems.map((item) => {
             const isActive =
               item.href === '/dashboard'

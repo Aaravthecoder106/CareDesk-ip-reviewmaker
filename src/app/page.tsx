@@ -44,20 +44,20 @@ export default function Home() {
 
       <main>
         {/* Hero */}
-        <section className="px-4 py-20 text-center sm:px-6 lg:px-8">
+        <section className="px-4 py-12 text-center sm:px-6 sm:py-20 lg:px-8">
           <div className="mx-auto max-w-3xl">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
               Your health,{' '}
               <span className="text-primary">understood</span>
             </h1>
-            <p className="mt-6 text-lg text-muted-foreground sm:text-xl">
+            <p className="mt-4 text-base text-muted-foreground sm:mt-6 sm:text-xl">
               CareDesk is an AI-powered platform that turns your medical reports
               into actionable insights. Upload, chat, visualize, and share — all
               in one place.
             </p>
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <div className="mt-6 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:items-center sm:justify-center">
               <Show when="signed-out">
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/sign-up"
                     className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
@@ -162,11 +162,11 @@ export default function Home() {
               CareDesk
             </span>
             <div className="flex gap-4 text-sm text-muted-foreground">
-              <Link href="#" className="hover:underline">
-                Privacy
+              <Link href="/about" className="hover:underline">
+                About Us
               </Link>
-              <Link href="#" className="hover:underline">
-                Terms
+              <Link href="/privacy" className="hover:underline">
+                Privacy Policy
               </Link>
             </div>
           </div>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FolderOpen, Upload, Trash2, RefreshCw, FileText, Loader2, Lock } from 'lucide-react'
+import { FolderOpen, Upload, Trash2, RefreshCw, FileText, Loader2, Lock, Eye } from 'lucide-react'
 
 interface Report {
   id: string
@@ -146,6 +146,21 @@ export default function ReportsPage() {
     setAnalyzing(null)
   }
 
+  async function handlePreview(id: string) {
+    setError('')
+    try {
+      const res = await fetch(`/api/reports/preview?id=${id}`)
+      const data = await res.json()
+      if (data.url) {
+        window.open(data.url, '_blank')
+      } else {
+        setError(data.error || 'Failed to open preview')
+      }
+    } catch {
+      setError('Failed to open preview')
+    }
+  }
+
   if (locked === null) {
     return (
       <div className="flex justify-center py-24">
@@ -187,15 +202,15 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Report Library</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">Report Library</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Upload, organize, and search your medical reports.
           </p>
         </div>
-        <div>
+        <div className="shrink-0">
           <input
             ref={fileInputRef}
             type="file"
@@ -203,7 +218,7 @@ export default function ReportsPage() {
             onChange={handleUpload}
             className="hidden"
           />
-          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full sm:w-auto">
             {uploading ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
@@ -240,11 +255,11 @@ export default function ReportsPage() {
         <div className="space-y-3">
           {reports.map((report) => (
             <Card key={report.id}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div className="flex items-center gap-3">
-                  <FileText className="size-8 text-primary/70" />
-                  <div>
-                    <h3 className="font-medium">{report.title}</h3>
+              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <FileText className="size-8 shrink-0 text-primary/70" />
+                  <div className="min-w-0">
+                    <h3 className="truncate font-medium">{report.title}</h3>
                     <p className="text-xs text-muted-foreground">
                       {new Date(report.created_at).toLocaleDateString()}
                       <span className={`ml-2 capitalize ${STATUS_STYLES[report.status] || ''}`}>
@@ -255,13 +270,21 @@ export default function ReportsPage() {
                       </span>
                     </p>
                     {report.ai_summary && (
-                      <p className="mt-1 max-w-lg text-xs text-muted-foreground line-clamp-2">
+                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
                         {report.ai_summary}
                       </p>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1 self-end sm:self-center">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => handlePreview(report.id)}
+                    title="View Document"
+                  >
+                    <Eye className="size-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"

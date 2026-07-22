@@ -42,9 +42,9 @@ export default async function DashboardPage() {
   const patient = await getCurrentPatient()
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl font-semibold sm:text-2xl">
           Welcome{user?.first_name ? `, ${user.first_name}` : ''}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

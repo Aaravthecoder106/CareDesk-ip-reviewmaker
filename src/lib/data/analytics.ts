@@ -1,6 +1,7 @@
 import 'server-only'
 import { auth } from '@clerk/nextjs/server'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { generateText } from '@/lib/ai/gemini'
 import type { Tables, Json } from '@/lib/supabase/types'
 
@@ -24,7 +25,15 @@ export async function regenerateAnalytics(): Promise<{ ok: true; data: Record<st
     const { userId } = await auth()
     if (!userId) return { ok: false, error: 'Not authenticated' }
 
-    const supabase = await createClerkSupabaseClient()
+    return await regenerateAnalyticsForUser(userId)
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Analytics generation failed' }
+  }
+}
+
+export async function regenerateAnalyticsForUser(userId: string): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
+  try {
+    const supabase = createAdminSupabaseClient()
 
     const { data: labs } = await supabase
       .from('lab_results')

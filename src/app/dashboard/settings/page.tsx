@@ -76,9 +76,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">Settings</h1>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl font-semibold sm:text-2xl">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your account and preferences.
         </p>
@@ -97,11 +97,11 @@ export default function SettingsPage() {
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : hasPassword ? (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
                   Your report library is password-protected.
                 </p>
-                <Button variant="destructive" size="sm" onClick={handleRemovePassword} disabled={actionLoading}>
+                <Button variant="destructive" size="sm" onClick={handleRemovePassword} disabled={actionLoading} className="w-full sm:w-auto">
                   {actionLoading ? <Loader2 className="mr-2 size-3 animate-spin" /> : <Trash2 className="mr-2 size-3" />}
                   Remove Password
                 </Button>
@@ -115,7 +115,7 @@ export default function SettingsPage() {
                   placeholder="Set a password for your report library"
                   className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
-                <Button onClick={handleSetPassword} disabled={actionLoading || !password.trim()}>
+                <Button onClick={handleSetPassword} disabled={actionLoading || !password.trim()} className="w-full sm:w-auto">
                   {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Shield className="mr-2 size-4" />}
                   Set Password
                 </Button>

@@ -11,6 +11,7 @@ import {
   BarChart3,
   Users,
   Settings,
+  Sparkles,
 } from 'lucide-react'
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/dashboard/family', label: 'Family', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/upgrade', label: 'Upgrade', icon: Sparkles },
 ]
 
 export function Sidebar() {
