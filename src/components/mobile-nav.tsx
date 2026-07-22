@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Show, UserButton } from '@clerk/nextjs'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/language-context'
 import {
   LayoutDashboard,
   FolderOpen,
@@ -14,23 +15,25 @@ import {
   Sparkles,
   Menu,
   X,
+  Globe,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/reports', label: 'Report Library', icon: FolderOpen },
-  { href: '/dashboard/chat', label: 'AI Chat', icon: MessageSquare },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/dashboard/family', label: 'Family', icon: Users },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-  { href: '/dashboard/upgrade', label: 'Upgrade', icon: Sparkles },
-]
-
 export function MobileNav() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+  const { locale, setLocale, t } = useLanguage()
+
+  const navItems = [
+    { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { href: '/dashboard/reports', label: t('nav.reports'), icon: FolderOpen },
+    { href: '/dashboard/chat', label: t('nav.chat'), icon: MessageSquare },
+    { href: '/dashboard/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    { href: '/dashboard/family', label: t('nav.family'), icon: Users },
+    { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
+    { href: '/dashboard/upgrade', label: t('nav.upgrade'), icon: Sparkles },
+  ]
 
   return (
     <div className="shrink-0 lg:hidden">
@@ -39,6 +42,12 @@ export function MobileNav() {
           CareDesk
         </Link>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLocale(locale === 'en' ? 'hi' : 'en')}
+            className="inline-flex h-7 items-center justify-center rounded-lg px-1.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Globe className="size-4" />
+          </button>
           <Show when="signed-in">
             <UserButton
               appearance={{ elements: { avatarBox: 'size-7' } }}
@@ -49,7 +58,7 @@ export function MobileNav() {
             size="icon-sm"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-label={open ? t('nav.closeMenu') : t('nav.openMenu')}
           >
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </Button>

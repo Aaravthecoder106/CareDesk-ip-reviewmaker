@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Show, UserButton } from '@clerk/nextjs'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/lib/i18n/language-context'
 import {
   LayoutDashboard,
   FolderOpen,
@@ -14,18 +15,19 @@ import {
   Sparkles,
 } from 'lucide-react'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/reports', label: 'Report Library', icon: FolderOpen },
-  { href: '/dashboard/chat', label: 'AI Chat', icon: MessageSquare },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/dashboard/family', label: 'Family', icon: Users },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-  { href: '/dashboard/upgrade', label: 'Upgrade', icon: Sparkles },
-]
-
 export function Sidebar() {
   const pathname = usePathname()
+  const { t } = useLanguage()
+
+  const navItems = [
+    { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { href: '/dashboard/reports', label: t('nav.reports'), icon: FolderOpen },
+    { href: '/dashboard/chat', label: t('nav.chat'), icon: MessageSquare },
+    { href: '/dashboard/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    { href: '/dashboard/family', label: t('nav.family'), icon: Users },
+    { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
+    { href: '/dashboard/upgrade', label: t('nav.upgrade'), icon: Sparkles },
+  ]
 
   return (
     <aside className="hidden w-56 shrink-0 border-r bg-sidebar lg:block">
@@ -64,7 +66,7 @@ export function Sidebar() {
                   },
                 }}
               />
-              <span className="text-xs text-muted-foreground">Account</span>
+              <span className="text-xs text-muted-foreground">{t('nav.account')}</span>
             </div>
           </Show>
         </div>

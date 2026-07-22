@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useLanguage } from '@/lib/i18n/language-context'
 import { BarChart3, RefreshCw, Loader2, TrendingUp, Pill, AlertCircle, FileText } from 'lucide-react'
 import {
   BarChart,
@@ -37,6 +38,7 @@ interface FamilySnapshot {
 const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#3b82f6']
 
 export default function AnalyticsPage() {
+  const { t } = useLanguage()
   const [ownData, setOwnData] = useState<AnalyticsData | null>(null)
   const [family, setFamily] = useState<FamilySnapshot[]>([])
   const [viewing, setViewing] = useState<string>('me')
@@ -86,16 +88,16 @@ export default function AnalyticsPage() {
 
   const conditionData = data?.conditionSummary
     ? [
-        { name: 'Active', value: data.conditionSummary.active || 0 },
-        { name: 'Chronic', value: data.conditionSummary.chronic || 0 },
-        { name: 'Resolved', value: data.conditionSummary.resolved || 0 },
+        { name: t('analytics.chart.active'), value: data.conditionSummary.active || 0 },
+        { name: t('analytics.chart.chronic'), value: data.conditionSummary.chronic || 0 },
+        { name: t('analytics.chart.resolved'), value: data.conditionSummary.resolved || 0 },
       ].filter(d => d.value > 0)
     : []
 
   const reportData = data?.reportStats
     ? [
-        { name: 'Processed', value: data.reportStats.processed || 0 },
-        { name: 'Pending', value: data.reportStats.pending || 0 },
+        { name: t('analytics.chart.processed'), value: data.reportStats.processed || 0 },
+        { name: t('analytics.chart.pending'), value: data.reportStats.pending || 0 },
       ]
     : []
 
@@ -103,9 +105,9 @@ export default function AnalyticsPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">Analytics</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">{t('analytics.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Interactive visualizations of your health data.
+            {t('analytics.subtitle')}
           </p>
         </div>
         {viewing === 'me' && (
@@ -115,7 +117,7 @@ export default function AnalyticsPage() {
             ) : (
               <RefreshCw className="mr-2 size-4" />
             )}
-            Regenerate
+            {t('analytics.regenerate')}
           </Button>
         )}
       </div>
@@ -127,7 +129,7 @@ export default function AnalyticsPage() {
             size="sm"
             onClick={() => setViewing('me')}
           >
-            My analytics
+            {t('analytics.myAnalytics')}
           </Button>
           {family.map((f) => (
             <Button
@@ -150,11 +152,11 @@ export default function AnalyticsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <BarChart3 className="size-12 text-muted-foreground/50" />
-            <h3 className="mt-4 font-medium">No data to visualize</h3>
+            <h3 className="mt-4 font-medium">{t('analytics.empty.title')}</h3>
             <p className="mt-1 text-sm text-muted-foreground text-center max-w-sm">
               {viewing === 'me'
-                ? 'Upload medical reports to see charts, graphs, and trends.'
-                : `No report uploaded by your family member yet. ${viewingFamily?.name || 'They'} needs to upload reports and generate analytics for stats to appear here.`}
+                ? t('analytics.empty.ownDesc')
+                : t('analytics.empty.familyDesc', { name: viewingFamily?.name || 'They' })}
             </p>
           </CardContent>
         </Card>
@@ -164,7 +166,7 @@ export default function AnalyticsPage() {
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Health Score</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('analytics.healthScore')}</CardTitle>
                 <TrendingUp className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -173,7 +175,7 @@ export default function AnalyticsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Active Medications</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('analytics.activeMedications')}</CardTitle>
                 <Pill className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -182,7 +184,7 @@ export default function AnalyticsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Conditions</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('analytics.conditions')}</CardTitle>
                 <AlertCircle className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -191,7 +193,7 @@ export default function AnalyticsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Reports</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('analytics.reports')}</CardTitle>
                 <FileText className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -204,7 +206,7 @@ export default function AnalyticsPage() {
           {data.insights && data.insights.length > 0 && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle className="text-sm font-medium">AI Insights</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('analytics.aiInsights')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
@@ -224,7 +226,7 @@ export default function AnalyticsPage() {
             {labChartData.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium">Lab Trends</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t('analytics.labTrends')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>
@@ -243,7 +245,7 @@ export default function AnalyticsPage() {
             {conditionData.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium">Conditions</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t('analytics.conditions')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>
@@ -270,7 +272,7 @@ export default function AnalyticsPage() {
             {reportData.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium">Report Status</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t('analytics.reportStatus')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>
@@ -289,7 +291,7 @@ export default function AnalyticsPage() {
             {labChartData.length > 1 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium">Lab Timeline</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t('analytics.labTimeline')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>

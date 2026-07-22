@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useLanguage } from '@/lib/i18n/language-context'
 import { MessageCircleHeart, X, Loader2, Send, Check } from 'lucide-react'
 
-const CHOICES = ['Yes', 'No', 'Maybe'] as const
-
 export function FeedbackWidget() {
+  const { t } = useLanguage()
   const [open, setOpen] = useState(false)
   const [wouldUse, setWouldUse] = useState<string | null>(null)
   const [liked, setLiked] = useState('')
@@ -16,9 +16,11 @@ export function FeedbackWidget() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
 
+  const choiceLabels = ['Yes', 'No', 'Maybe']
+
   async function handleSend() {
     if (!wouldUse) {
-      setError('Please answer the first question')
+      setError(t('feedback.answerRequired'))
       return
     }
     setSending(true)
@@ -33,17 +35,16 @@ export function FeedbackWidget() {
       if (data.ok) {
         setSent(true)
       } else {
-        setError(data.error || 'Could not send feedback. Please try again.')
+        setError(data.error || t('feedback.error'))
       }
     } catch {
-      setError('Could not send feedback. Please try again.')
+      setError(t('feedback.error'))
     }
     setSending(false)
   }
 
   function handleClose() {
     setOpen(false)
-    // Reset after the closing animation would finish so reopening is fresh.
     if (sent) {
       setTimeout(() => {
         setSent(false)
@@ -62,7 +63,7 @@ export function FeedbackWidget() {
         className="fixed z-40 shadow-lg max-sm:bottom-[max(1rem,env(safe-area-inset-bottom))] max-sm:right-[max(1rem,env(safe-area-inset-right))] bottom-4 right-4 sm:bottom-6 sm:right-6"
       >
         <MessageCircleHeart className="size-7 sm:mr-2" />
-        <span className="hidden sm:inline text-base">Feedback</span>
+        <span className="hidden sm:inline text-base">{t('feedback.button')}</span>
       </Button>
 
       {open && (
@@ -75,7 +76,7 @@ export function FeedbackWidget() {
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Share your feedback</CardTitle>
+              <CardTitle className="text-base">{t('feedback.title')}</CardTitle>
               <Button variant="ghost" size="icon-sm" onClick={handleClose}>
                 <X className="size-4" />
               </Button>
@@ -86,20 +87,20 @@ export function FeedbackWidget() {
                   <div className="flex size-12 items-center justify-center rounded-full bg-green-100">
                     <Check className="size-6 text-green-600" />
                   </div>
-                  <p className="font-medium">Thank you!</p>
+                  <p className="font-medium">{t('feedback.thanks')}</p>
                   <p className="text-sm text-muted-foreground">
-                    Your feedback has been sent.
+                    {t('feedback.thanksDesc')}
                   </p>
                   <Button variant="outline" size="sm" onClick={handleClose}>
-                    Close
+                    {t('feedback.close')}
                   </Button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
                   <div>
-                    <p className="mb-2 text-sm font-medium">Would you use this app?</p>
+                    <p className="mb-2 text-sm font-medium">{t('feedback.question1')}</p>
                     <div className="flex gap-2">
-                      {CHOICES.map((c) => (
+                      {choiceLabels.map((c) => (
                         <Button
                           key={c}
                           type="button"
@@ -114,23 +115,23 @@ export function FeedbackWidget() {
                   </div>
 
                   <div>
-                    <p className="mb-2 text-sm font-medium">What did you like?</p>
+                    <p className="mb-2 text-sm font-medium">{t('feedback.question2')}</p>
                     <textarea
                       value={liked}
                       onChange={(e) => setLiked(e.target.value)}
                       rows={3}
-                      placeholder="Tell us what worked well for you..."
+                      placeholder={t('feedback.question2.placeholder')}
                       className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
                   <div>
-                    <p className="mb-2 text-sm font-medium">What&apos;s missing?</p>
+                    <p className="mb-2 text-sm font-medium">{t('feedback.question3')}</p>
                     <textarea
                       value={missing}
                       onChange={(e) => setMissing(e.target.value)}
                       rows={3}
-                      placeholder="What would make this app better?"
+                      placeholder={t('feedback.question3.placeholder')}
                       className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
@@ -143,7 +144,7 @@ export function FeedbackWidget() {
                     ) : (
                       <Send className="mr-2 size-4" />
                     )}
-                    Send Feedback
+                    {t('feedback.send')}
                   </Button>
                 </div>
               )}

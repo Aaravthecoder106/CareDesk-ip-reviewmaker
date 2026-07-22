@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useLanguage } from '@/lib/i18n/language-context'
 import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Bell, Copy, Ticket } from 'lucide-react'
 
 interface FamilyMember {
@@ -36,6 +37,7 @@ interface Notification {
 
 export default function FamilyPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const [members, setMembers] = useState<FamilyMember[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -62,7 +64,6 @@ export default function FamilyPage() {
       const notifData = await notifRes.json()
       setMembers(membersData.members || [])
       setInvites(invitesData.invites || [])
-      // Only unread notifications are shown; read ones are dismissed.
       setNotifications((notifData.notifications || []).filter((n: Notification) => !n.read_at))
     } catch {
       console.error('Failed to fetch family data')
@@ -91,18 +92,16 @@ export default function FamilyPage() {
         setInviteRelation('')
         setShowInvite(false)
         if (data.emailSent) {
-          setMessage(`Invite sent to ${sentTo}! They'll receive the invite code in their inbox.`)
+          setMessage(t('family.messages.sent', { email: sentTo }))
         } else {
-          setMessage(
-            `Invite created for ${sentTo}. The email couldn't be sent — copy the invite code from Pending Invites below and share it with them.`
-          )
+          setMessage(t('family.messages.emailFailed', { email: sentTo }))
         }
         fetchData(false)
       } else {
-        setMessage(data.error || 'Invite failed')
+        setMessage(data.error || t('family.messages.failed'))
       }
     } catch {
-      setMessage('Invite failed')
+      setMessage(t('family.messages.failed'))
     }
     setInviting(false)
   }
@@ -120,13 +119,13 @@ export default function FamilyPage() {
       const data = await res.json()
       if (data.ok) {
         setAcceptCode('')
-        setMessage('Invite accepted! Waiting for the owner to confirm the link.')
+        setMessage(t('family.messages.accepted'))
         fetchData(false)
       } else {
-        setMessage(data.error || 'Could not accept invite')
+        setMessage(data.error || t('family.messages.acceptFailed'))
       }
     } catch {
-      setMessage('Could not accept invite')
+      setMessage(t('family.messages.acceptFailed'))
     }
     setAccepting(false)
   }
@@ -141,13 +140,13 @@ export default function FamilyPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        setMessage('Family member confirmed — shared analytics are now active.')
+        setMessage(t('family.messages.confirmed'))
       } else {
-        setMessage(data.error || 'Confirm failed')
+        setMessage(data.error || t('family.messages.confirmFailed'))
       }
       fetchData()
     } catch {
-      setMessage('Confirm failed')
+      setMessage(t('family.messages.confirmFailed'))
     }
   }
 
@@ -171,7 +170,6 @@ export default function FamilyPage() {
   }
 
   async function handleMarkRead(id: string) {
-    // Dismiss immediately; the server write is fire-and-forget.
     setNotifications(prev => prev.filter(n => n.id !== id))
     await fetch('/api/notifications', {
       method: 'POST',
@@ -188,14 +186,14 @@ export default function FamilyPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">Family</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">{t('family.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Invite family members and share health insights.
+            {t('family.subtitle')}
           </p>
         </div>
         <Button onClick={() => setShowInvite(true)} className="w-full sm:w-auto">
           <UserPlus className="mr-2 size-4" />
-          Invite Member
+          {t('family.inviteMember')}
         </Button>
       </div>
 
@@ -210,7 +208,7 @@ export default function FamilyPage() {
       {showInvite && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Invite Family Member</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('family.inviteCard.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -218,20 +216,20 @@ export default function FamilyPage() {
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Email address"
+                placeholder={t('family.inviteCard.emailPlaceholder')}
                 className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
               <input
                 value={inviteRelation}
                 onChange={(e) => setInviteRelation(e.target.value)}
-                placeholder="Relation (optional)"
+                placeholder={t('family.inviteCard.relationPlaceholder')}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring sm:w-48"
               />
               <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
                 {inviting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Mail className="mr-2 size-4" />}
-                Send Invite
+                {t('family.inviteCard.send')}
               </Button>
-              <Button variant="ghost" onClick={() => setShowInvite(false)}>Cancel</Button>
+              <Button variant="ghost" onClick={() => setShowInvite(false)}>{t('family.inviteCard.cancel')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -247,10 +245,10 @@ export default function FamilyPage() {
           {notifications.length > 0 && (
             <div className="mb-6">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Bell className="size-4" /> Notifications
+                <Bell className="size-4" /> {t('family.notifications')}
                 {unread.length > 0 && (
                   <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">
-                    {unread.length} new
+                    {t('family.notifications.new', { count: unread.length })}
                   </span>
                 )}
               </h2>
@@ -267,7 +265,7 @@ export default function FamilyPage() {
                       </div>
                       {!n.read_at && (
                         <Button variant="ghost" size="sm" onClick={() => handleMarkRead(n.id)} className="self-start sm:self-auto">
-                          <Check className="mr-1 size-3" /> Read
+                          <Check className="mr-1 size-3" /> {t('family.notifications.read')}
                         </Button>
                       )}
                     </CardContent>
@@ -281,7 +279,7 @@ export default function FamilyPage() {
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <Ticket className="size-4" /> Have an invite code?
+                <Ticket className="size-4" /> {t('family.acceptCode.title')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -289,12 +287,12 @@ export default function FamilyPage() {
                 <input
                   value={acceptCode}
                   onChange={(e) => setAcceptCode(e.target.value)}
-                  placeholder="Paste the invite code a family member shared with you"
+                  placeholder={t('family.acceptCode.placeholder')}
                   className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
                 <Button onClick={handleAcceptCode} disabled={accepting || !acceptCode.trim()}>
                   {accepting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Check className="mr-2 size-4" />}
-                  Accept Invite
+                  {t('family.acceptCode.accept')}
                 </Button>
               </div>
             </CardContent>
@@ -302,14 +300,14 @@ export default function FamilyPage() {
 
           {/* Accepted Members */}
           <div className="mb-6">
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Family Members</h2>
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t('family.members.title')}</h2>
             {acceptedMembers.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Users className="size-10 text-muted-foreground/50" />
-                  <h3 className="mt-3 font-medium">No family members yet</h3>
+                  <h3 className="mt-3 font-medium">{t('family.members.empty.title')}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Invite family to share analytics and get health notifications.
+                    {t('family.members.empty.desc')}
                   </p>
                 </CardContent>
               </Card>
@@ -322,10 +320,10 @@ export default function FamilyPage() {
                         <Check className="size-4 shrink-0 text-green-600" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium">
-                            {m.display_name || m.relation || 'Family member'}
+                            {m.display_name || m.relation || t('family.members.defaultName')}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {m.relation ? `${m.relation} · ` : ''}Linked {new Date(m.created_at).toLocaleDateString()} · shared analytics active
+                            {m.relation ? `${m.relation} · ` : ''}{t('family.members.linked', { date: new Date(m.created_at).toLocaleDateString() })}
                           </p>
                         </div>
                       </div>
@@ -339,10 +337,10 @@ export default function FamilyPage() {
             )}
           </div>
 
-          {/* Pending Members (owner confirms; member waits) */}
+          {/* Pending Members */}
           {pendingMembers.length > 0 && (
             <div className="mb-6">
-              <h2 className="mb-3 text-sm font-medium text-muted-foreground">Pending Confirmation</h2>
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t('family.pending.title')}</h2>
               <div className="space-y-2">
                 {pendingMembers.map((m) => {
                   const iAmOwner = m.owner_id === user?.id
@@ -352,18 +350,18 @@ export default function FamilyPage() {
                         <div className="flex min-w-0 items-center gap-3">
                           <Users className="size-4 shrink-0 text-amber-600" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium">{m.relation || 'Family member'}</p>
+                            <p className="text-sm font-medium">{m.relation || t('family.members.defaultName')}</p>
                             <p className="text-xs text-muted-foreground">
                               {iAmOwner
-                                ? 'Waiting for your confirmation'
-                                : 'Waiting for the inviter to confirm your request'}
+                                ? t('family.pending.waitingOwner')
+                                : t('family.pending.waitingMember')}
                             </p>
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-1 self-end sm:self-auto">
                           {iAmOwner && (
                             <Button size="sm" onClick={() => handleConfirm(m.id)}>
-                              <Check className="mr-1 size-3" /> Confirm
+                              <Check className="mr-1 size-3" /> {t('family.pending.confirm')}
                             </Button>
                           )}
                           <Button variant="ghost" size="sm" onClick={() => handleRemove(m.id)}>
@@ -381,7 +379,7 @@ export default function FamilyPage() {
           {/* Pending Invites */}
           {invites.length > 0 && (
             <div>
-              <h2 className="mb-3 text-sm font-medium text-muted-foreground">Pending Invites</h2>
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t('family.invites.title')}</h2>
               <div className="space-y-2">
                 {invites.map((inv) => (
                   <Card key={inv.id}>
@@ -391,13 +389,13 @@ export default function FamilyPage() {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{inv.email}</p>
                           <p className="text-xs text-muted-foreground">
-                            {inv.relation ? `${inv.relation} · ` : ''}Invited {new Date(inv.created_at).toLocaleDateString()}
+                            {inv.relation ? `${inv.relation} · ` : ''}{t('family.invites.invited', { date: new Date(inv.created_at).toLocaleDateString() })}
                           </p>
                         </div>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => handleCopyToken(inv)} className="w-full sm:w-auto">
                         <Copy className="mr-1 size-3" />
-                        {copiedId === inv.id ? 'Copied!' : 'Copy invite code'}
+                        {copiedId === inv.id ? t('family.invites.copied') : t('family.invites.copyCode')}
                       </Button>
                     </CardContent>
                   </Card>

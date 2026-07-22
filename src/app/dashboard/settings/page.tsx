@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useLanguage } from '@/lib/i18n/language-context'
 import { Shield, Lock, Unlock, Loader2, Trash2 } from 'lucide-react'
 
 export default function SettingsPage() {
+  const { t } = useLanguage()
   const [hasPassword, setHasPassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const [password, setPassword] = useState('')
@@ -43,14 +45,14 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        setMessage('Password set successfully')
+        setMessage(t('settings.libraryPassword.success'))
         setPassword('')
         setHasPassword(true)
       } else {
-        setMessage(data.error || 'Failed to set password')
+        setMessage(data.error || t('settings.libraryPassword.setError'))
       }
     } catch {
-      setMessage('Failed to set password')
+      setMessage(t('settings.libraryPassword.setError'))
     }
     setActionLoading(false)
   }
@@ -66,11 +68,11 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        setMessage('Password removed')
+        setMessage(t('settings.libraryPassword.removed'))
         setHasPassword(false)
       }
     } catch {
-      setMessage('Failed to remove password')
+      setMessage(t('settings.libraryPassword.removeError'))
     }
     setActionLoading(false)
   }
@@ -78,9 +80,9 @@ export default function SettingsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl font-semibold sm:text-2xl">Settings</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">{t('settings.title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your account and preferences.
+          {t('settings.subtitle')}
         </p>
       </div>
 
@@ -90,7 +92,7 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               {hasPassword ? <Lock className="size-4" /> : <Unlock className="size-4" />}
-              <CardTitle className="text-sm font-medium">Report Library Password</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('settings.libraryPassword')}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -99,11 +101,11 @@ export default function SettingsPage() {
             ) : hasPassword ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Your report library is password-protected.
+                  {t('settings.libraryPassword.protected')}
                 </p>
                 <Button variant="destructive" size="sm" onClick={handleRemovePassword} disabled={actionLoading} className="w-full sm:w-auto">
                   {actionLoading ? <Loader2 className="mr-2 size-3 animate-spin" /> : <Trash2 className="mr-2 size-3" />}
-                  Remove Password
+                  {t('settings.libraryPassword.remove')}
                 </Button>
               </div>
             ) : (
@@ -112,12 +114,12 @@ export default function SettingsPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Set a password for your report library"
+                  placeholder={t('settings.libraryPassword.setPlaceholder')}
                   className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
                 <Button onClick={handleSetPassword} disabled={actionLoading || !password.trim()} className="w-full sm:w-auto">
                   {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Shield className="mr-2 size-4" />}
-                  Set Password
+                  {t('settings.libraryPassword.set')}
                 </Button>
               </div>
             )}
@@ -130,12 +132,11 @@ export default function SettingsPage() {
         {/* Account */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Account</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('settings.account.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Account settings are managed through your Clerk profile. Use the
-              user menu in the sidebar to manage your account.
+              {t('settings.account.desc')}
             </p>
           </CardContent>
         </Card>

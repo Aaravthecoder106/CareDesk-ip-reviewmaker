@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useLanguage } from '@/lib/i18n/language-context'
 import { MessageSquare, Send, Trash2, Loader2, ImagePlus, X } from 'lucide-react'
 
 interface Message {
@@ -13,6 +14,7 @@ interface Message {
 }
 
 export default function ChatPage() {
+  const { t } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -45,7 +47,7 @@ export default function ChatPage() {
     e.target.value = ''
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      alert('Only image files can be attached in chat. Upload PDFs and reports in the Report Library.')
+      alert(t('chat.imageOnly'))
       return
     }
     const reader = new FileReader()
@@ -95,7 +97,7 @@ export default function ChatPage() {
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'Sorry, something went wrong. Please try again.',
+        content: t('chat.error'),
         created_at: new Date().toISOString(),
       }])
     }
@@ -111,15 +113,15 @@ export default function ChatPage() {
     <div className="flex h-full min-h-0 flex-col p-4 sm:p-6 lg:p-8">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">AI Chat</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">{t('chat.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ask questions about your medical reports and health data.
+            {t('chat.subtitle')}
           </p>
         </div>
         {messages.length > 0 && (
           <Button variant="ghost" size="sm" onClick={handleClear} className="self-start sm:self-auto">
             <Trash2 className="mr-2 size-4" />
-            Clear
+            {t('chat.clear')}
           </Button>
         )}
       </div>
@@ -134,9 +136,9 @@ export default function ChatPage() {
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <MessageSquare className="size-12 text-muted-foreground/50" />
-                <h3 className="mt-4 font-medium">Start a conversation</h3>
+                <h3 className="mt-4 font-medium">{t('chat.empty.title')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground text-center max-w-sm">
-                  Upload reports first, then ask AI anything about your health data.
+                  {t('chat.empty.desc')}
                 </p>
               </div>
             ) : (
@@ -181,12 +183,12 @@ export default function ChatPage() {
                     type="button"
                     onClick={() => setImage(null)}
                     className="absolute -right-2 -top-2 rounded-full bg-background border p-0.5 shadow"
-                    aria-label="Remove image"
+                    aria-label={t('chat.removeImage')}
                   >
                     <X className="size-3" />
                   </button>
                 </div>
-                <span className="text-xs text-muted-foreground">Image attached</span>
+                <span className="text-xs text-muted-foreground">{t('chat.imageAttached')}</span>
               </div>
             )}
             <form
@@ -209,14 +211,14 @@ export default function ChatPage() {
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
-                title="Attach an image"
+                title={t('chat.attachImage')}
               >
                 <ImagePlus className="size-4" />
               </Button>
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your health data..."
+                placeholder={t('chat.input.placeholder')}
                 className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 disabled={loading}
               />
