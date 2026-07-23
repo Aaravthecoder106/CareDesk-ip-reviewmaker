@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import { currentUser } from '@clerk/nextjs/server'
-
-const FEEDBACK_EMAIL = 'ay473671@gmail.com'
+import { auth, currentUser } from '@clerk/nextjs/server'
+import { sendFeedbackEmail } from '@/lib/email/feedback'
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,32 +13,10 @@ export async function POST(req: NextRequest) {
     const user = await currentUser()
     const from = user?.emailAddresses?.[0]?.emailAddress || userId
 
-    // FormSubmit relays the submission to the email inbox; no API key needed.
-    // We must provide User-Agent and Origin/Referer because FormSubmit blocks pure server-to-server
-    // calls that look like local HTML files (which is the error the user sees).
-    const res = await fetch(`https://formsubmit.co/ajax/${FEEDBACK_EMAIL}`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://localhost:3000',
-        'Referer': 'https://localhost:3000/'
-      },
-      body: JSON.stringify({
-        _subject: `CareDesk feedback from ${from}`,
-        _template: 'table',
-        'Would you use this app?': wouldUse,
-        'What did you like?': liked || '(empty)',
-        "What's missing?": missing || '(empty)',
-        'From user': from,
-      }),
-    })
-
-    const data = await res.json().catch(() => null)
-    if (!res.ok || data?.success === 'false' || data?.success === false) {
+    const result = await sendFeedbackEmail({ wouldUse, liked: liked || '', missing: missing || '', from })
+    if (!result.ok) {
       return NextResponse.json(
-        { error: data?.message || 'Email service rejected the feedback' },
+        { error: result.error },
         { status: 502 }
       )
     }
