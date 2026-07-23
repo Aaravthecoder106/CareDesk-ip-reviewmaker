@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { currentUser } from '@clerk/nextjs/server'
+import { resolveAppUrl } from '@/lib/email/family-invite'
 
 const FEEDBACK_EMAIL = 'ay473671@gmail.com'
 
@@ -18,14 +19,17 @@ export async function POST(req: NextRequest) {
     // FormSubmit relays the submission to the email inbox; no API key needed.
     // We must provide User-Agent and Origin/Referer because FormSubmit blocks pure server-to-server
     // calls that look like local HTML files (which is the error the user sees).
+    // Use the real deployment URL so FormSubmit doesn't reject the request.
+    const appUrl = resolveAppUrl(req.headers.get('origin'))
+
     const res = await fetch(`https://formsubmit.co/ajax/${FEEDBACK_EMAIL}`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json', 
         'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://localhost:3000',
-        'Referer': 'https://localhost:3000/'
+        'Origin': appUrl,
+        'Referer': `${appUrl}/`
       },
       body: JSON.stringify({
         _subject: `CareDesk feedback from ${from}`,
