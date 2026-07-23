@@ -60,7 +60,7 @@ function buildInviteEmailContent(params: {
   return { subject, text, html }
 }
 
-async function sendViaResend(
+export async function sendViaResend(
   to: string,
   subject: string,
   html: string,
