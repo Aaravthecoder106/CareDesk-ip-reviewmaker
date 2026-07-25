@@ -4,107 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { Shield, Lock, Unlock, Loader2, Trash2, MessageCircleHeart, ChevronDown, ChevronUp } from 'lucide-react'
-
-interface FeedbackItem {
-  id: string
-  user_id: string
-  email: string | null
-  would_use: string
-  liked: string | null
-  missing: string | null
-  created_at: string
-}
-
-function FeedbackViewer() {
-  const { t } = useLanguage()
-  const [feedback, setFeedback] = useState<FeedbackItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [expanded, setExpanded] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchFeedback()
-  }, [])
-
-  async function fetchFeedback() {
-    try {
-      const res = await fetch('/api/feedback')
-      const data = await res.json()
-      if (data.data) {
-        setFeedback(data.data)
-      } else {
-        setError(t('feedback.view.loadError'))
-      }
-    } catch {
-      setError(t('feedback.view.loadError'))
-    }
-    setLoading(false)
-  }
-
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <MessageCircleHeart className="size-4" />
-          <CardTitle className="text-sm font-medium">{t('feedback.view.title')}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
-            {t('feedback.view.loading')}
-          </div>
-        ) : error ? (
-          <p className="text-sm text-destructive">{error}</p>
-        ) : feedback.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('feedback.view.empty')}</p>
-        ) : (
-          <div className="space-y-2">
-            {feedback.map((item) => (
-              <div key={item.id} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{item.email || item.user_id.slice(0, 8)}</span>
-                    <span className="text-xs text-muted-foreground">{formatDate(item.created_at)}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setExpanded(expanded === item.id ? null : item.id)}
-                  >
-                    {expanded === item.id ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-                  </Button>
-                </div>
-                <div className="mt-1">
-                  <span className="text-xs text-muted-foreground">Would use: </span>
-                  <span className={`text-xs font-medium ${
-                    item.would_use === 'Yes' ? 'text-green-600' :
-                    item.would_use === 'No' ? 'text-red-600' : 'text-yellow-600'
-                  }`}>{item.would_use}</span>
-                </div>
-                {expanded === item.id && (
-                  <div className="mt-2 space-y-1 border-t pt-2 text-xs text-muted-foreground">
-                    <p><span className="font-medium">Liked:</span> {item.liked || '(empty)'}</p>
-                    <p><span className="font-medium">Missing:</span> {item.missing || '(empty)'}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+import { Shield, Lock, Unlock, Loader2, Trash2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const { t } = useLanguage()
@@ -241,8 +141,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* User Feedback Viewer */}
-        <FeedbackViewer />
       </div>
     </div>
   )
