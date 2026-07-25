@@ -1,9 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import { currentUser } from '@clerk/nextjs/server'
-import { resolveAppUrl } from '@/lib/email/family-invite'
+import { auth, currentUser } from '@clerk/nextjs/server'
+import { Resend } from 'resend'
 
 const FEEDBACK_EMAIL = 'ay473671@gmail.com'
+
+function buildFeedbackEmailHtml(from: string, wouldUse: string, liked: string, missing: string): string {
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111; max-width: 520px;">
+      <h2 style="margin: 0 0 16px;">CareDesk Feedback</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 12px; background: #f4f4f5; font-weight: 600; width: 40%;">From</td>
+          <td style="padding: 8px 12px;">${from}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; background: #f4f4f5; font-weight: 600;">Would you use this app?</td>
+          <td style="padding: 8px 12px;">${wouldUse}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; background: #f4f4f5; font-weight: 600;">What did you like?</td>
+          <td style="padding: 8px 12px;">${liked || '<em>(empty)</em>'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; background: #f4f4f5; font-weight: 600;">What's missing?</td>
+          <td style="padding: 8px 12px;">${missing || '<em>(empty)</em>'}</td>
+        </tr>
+      </table>
+      <p style="margin: 24px 0 0; font-size: 13px; color: #666;">Sent via CareDesk feedback widget</p>
+    </div>
+  `
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,37 +42,33 @@ export async function POST(req: NextRequest) {
     const user = await currentUser()
     const from = user?.emailAddresses?.[0]?.emailAddress || userId
 
-    // FormSubmit relays the submission to the email inbox; no API key needed.
-    // We must provide User-Agent and Origin/Referer because FormSubmit blocks pure server-to-server
-    // calls that look like local HTML files (which is the error the user sees).
-    // Use the real deployment URL so FormSubmit doesn't reject the request.
-    const appUrl = resolveAppUrl(req.headers.get('origin'))
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'Email service not configured' }, { status: 502 })
+    }
 
-    const res = await fetch(`https://formsubmit.co/ajax/${FEEDBACK_EMAIL}`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': appUrl,
-        'Referer': `${appUrl}/`
-      },
-      body: JSON.stringify({
-        _subject: `CareDesk feedback from ${from}`,
-        _template: 'table',
-        'Would you use this app?': wouldUse,
-        'What did you like?': liked || '(empty)',
-        "What's missing?": missing || '(empty)',
-        'From user': from,
-      }),
+    const resend = new Resend(apiKey)
+    const subject = `CareDesk feedback from ${from}`
+    const html = buildFeedbackEmailHtml(from, wouldUse, liked, missing)
+    const text = [
+      `Feedback from: ${from}`,
+      '',
+      `Would you use this app? ${wouldUse}`,
+      `What did you like? ${liked || '(empty)'}`,
+      `What's missing? ${missing || '(empty)'}`,
+    ].join('\n')
+
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'CareDesk <onboarding@resend.dev>'
+    const { error } = await resend.emails.send({
+      from: fromEmail,
+      to: FEEDBACK_EMAIL,
+      subject,
+      html,
+      text,
     })
 
-    const data = await res.json().catch(() => null)
-    if (!res.ok || data?.success === 'false' || data?.success === false) {
-      return NextResponse.json(
-        { error: data?.message || 'Email service rejected the feedback' },
-        { status: 502 }
-      )
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 502 })
     }
 
     return NextResponse.json({ ok: true })
