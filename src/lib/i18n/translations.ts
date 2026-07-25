@@ -202,6 +202,10 @@ const translations = {
     'feedback.thanksDesc': 'Your feedback has been sent.',
     'feedback.error': 'Could not send feedback. Please try again.',
     'feedback.answerRequired': 'Please answer the first question',
+    'feedback.view.title': 'User Feedback',
+    'feedback.view.empty': 'No feedback submitted yet.',
+    'feedback.view.loading': 'Loading feedback...',
+    'feedback.view.loadError': 'Failed to load feedback',
 
     // Sign in / Sign up
     'auth.signIn.title': 'Sign in to your account',

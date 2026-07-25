@@ -34,3 +34,27 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export async function GET() {
+  try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const supabase = createAdminSupabaseClient()
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 502 })
+    }
+
+    return NextResponse.json({ data })
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to fetch feedback' },
+      { status: 500 }
+    )
+  }
+}
