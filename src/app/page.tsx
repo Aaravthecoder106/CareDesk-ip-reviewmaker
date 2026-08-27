@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Show } from '@clerk/nextjs'
+import { Show } from '@/components/clerk-shim'
 import { Header } from '@/components/header'
 import { useLanguage } from '@/lib/i18n/language-context'
 import {

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Show, UserButton } from '@clerk/nextjs'
+import { Show, UserButton } from '@/components/clerk-shim'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { Globe } from 'lucide-react'
 

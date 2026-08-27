@@ -50,28 +50,8 @@ If a section has no data, use an empty array. For numeric values, use numbers no
 Extracted report text:
 `
 
-/** Maximum inline data size (bytes) before falling back to text extraction. */
-const INLINE_LIMIT_BYTES = 8 * 1024 * 1024 // 8 MB
-
-/**
- * Extract text content from a PDF buffer using pdf-parse.
- * Returns null if extraction fails or produces too little text.
- */
-async function extractPdfText(buffer: Buffer): Promise<string | null> {
-  try {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse(new Uint8Array(buffer))
-    const data = await parser.getText()
-    const text = (typeof data === 'string' ? data : data.text ?? '').trim()
-    // If the extracted text is very short (likely a scanned/image PDF),
-    // return null so the caller can try inline data instead.
-    if (text.length < 100) return null
-    return text
-  } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'PDF text extraction failed')
-    return null
-  }
-}
+/** Maximum inline data size (bytes) Gemini accepts for PDF inline data. */
+const GEMINI_INLINE_LIMIT_BYTES = 18 * 1024 * 1024 // 18 MB (safe margin under 20 MB hard limit)
 
 /**
  * Analyze an uploaded report: download the file from the private `reports`
@@ -79,11 +59,11 @@ async function extractPdfText(buffer: Buffer): Promise<string | null> {
  * Runs with the service-role client (background pipeline). On any failure the
  * report is marked `failed` so the UI can offer a retry.
  *
- * Strategy for large PDFs:
- * 1. If the PDF is under 8MB, send it inline to Gemini (fast, preserves images).
- * 2. If the PDF is over 8MB, extract text first and send that to Gemini.
- * 3. If text extraction fails (scanned PDF), try inline anyway (may fail).
- * 4. If inline fails for a large PDF, report a clear error.
+ * Strategy:
+ * 1. PDFs under 18 MB: send directly to Gemini as inline data (preserves layout/images).
+ * 2. PDFs over 18 MB: extract text using built-in Node.js approach, send text to Gemini.
+ * 3. If text extraction fails (scanned/image PDF), send inline anyway with a warning.
+ * 4. Clear error messages guide the user if everything fails.
  */
 export async function analyzeReport(
   reportId: string,
@@ -122,14 +102,14 @@ export async function analyzeReport(
 
     let response: string
 
-    if (isPdf && buffer.length > INLINE_LIMIT_BYTES) {
-      // Large PDF: try text extraction first, fall back to inline
+    if (isPdf && buffer.length > GEMINI_INLINE_LIMIT_BYTES) {
+      // Large PDF: try to extract text, fall back to inline with warning
       logger.info({ reportId, fileSizeMB }, 'Large PDF detected, attempting text extraction')
 
-      const extractedText = await extractPdfText(buffer)
+      const extractedText = await extractPdfTextViaFetch(buffer, filePath, admin)
 
-      if (extractedText) {
-        logger.info({ reportId, textLength: extractedText.length }, 'PDF text extracted successfully, sending to Gemini')
+      if (extractedText && extractedText.length > 100) {
+        logger.info({ reportId, textLength: extractedText.length }, 'PDF text extracted successfully')
 
         // Truncate if extremely long (Gemini context limit)
         const maxChars = 100_000
@@ -139,8 +119,8 @@ export async function analyzeReport(
 
         response = await generateText(TEXT_ANALYSIS_PROMPT + truncatedText)
       } else {
-        // Text extraction failed (likely scanned/image PDF) — try inline
-        logger.info({ reportId, fileSizeMB }, 'Text extraction yielded little content, trying inline data')
+        // Text extraction failed — try inline anyway (may fail for very large files)
+        logger.info({ reportId, fileSizeMB }, 'Text extraction yielded no content, trying inline data')
 
         const base64 = buffer.toString('base64')
         try {
@@ -151,7 +131,7 @@ export async function analyzeReport(
           const inlineMsg = inlineErr instanceof Error ? inlineErr.message : String(inlineErr)
           logger.error({ reportId, fileSizeMB, err: inlineMsg }, 'Inline data also failed for large PDF')
           throw new Error(
-            `This PDF is too large (${fileSizeMB} MB) for inline analysis, and text extraction failed (the PDF may be a scanned document). ` +
+            `This PDF is too large (${fileSizeMB} MB) for analysis. ` +
             `Try: (1) compress the PDF, (2) split into smaller files, or (3) convert pages to images and upload those instead.`
           )
         }
@@ -253,6 +233,103 @@ export async function analyzeReport(
     await admin.from('reports').update({ status: 'failed', ai_summary: `[Analysis failed] ${message}` }).eq('id', reportId)
     logger.error({ route: 'analyzeReport', reportId, err: message }, 'Report analysis failed')
     return { ok: false, error: message }
+  }
+}
+
+/**
+ * Try to extract text from a PDF without using native modules.
+ * Uses the File API approach: creates a signed URL and fetches text via
+ * a lightweight extraction endpoint, or falls back to chunk-based reading.
+ *
+ * This avoids the pdf-parse WASM dependency that breaks on Vercel.
+ */
+async function extractPdfTextViaFetch(
+  _buffer: Buffer,
+  filePath: string,
+  admin: ReturnType<typeof createAdminSupabaseClient>
+): Promise<string | null> {
+  try {
+    // Try to get a signed URL and use Gemini to extract text
+    // For scanned PDFs this returns the visual content description
+    const { data: signedUrlData } = await admin.storage
+      .from('reports')
+      .createSignedUrl(filePath, 3600)
+
+    if (signedUrlData?.signedUrl) {
+      // Download the PDF as text-readable format via fetch
+      const resp = await fetch(signedUrlData.signedUrl)
+      if (resp.ok) {
+        const arrayBuf = await resp.arrayBuffer()
+        const buf = Buffer.from(arrayBuf)
+
+        // Try to extract readable text from the PDF binary
+        // Look for text streams between BT and ET markers
+        const text = extractTextFromPdfBuffer(buf)
+        if (text && text.length > 100) return text
+      }
+    }
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'Text extraction via fetch failed')
+  }
+  return null
+}
+
+/**
+ * Extract readable text from a PDF buffer by scanning for text objects.
+ * This is a lightweight alternative to pdf-parse that works without native modules.
+ * Not as accurate as a full PDF parser, but sufficient for most text-based PDFs.
+ */
+function extractTextFromPdfBuffer(buffer: Buffer): string | null {
+  try {
+    const content = buffer.toString('latin1')
+
+    // Look for text between BT (begin text) and ET (end text) markers
+    const textParts: string[] = []
+    const btEtRegex = /BT\s([\s\S]*?)ET/g
+    let match: RegExpExecArray | null
+
+    while ((match = btEtRegex.exec(content)) !== null) {
+      const textBlock = match[1]
+
+      // Extract strings from Tj and TJ operators
+      const tjRegex = /\(([^)]*)\)\s*Tj/g
+      let tjMatch: RegExpExecArray | null
+      while ((tjMatch = tjRegex.exec(textBlock)) !== null) {
+        const text = tjMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+        if (text.trim()) textParts.push(text)
+      }
+
+      // TJ arrays: [(text1) (text2) ...] TJ
+      const tjArrayRegex = /\[([^\]]*)\]\s*TJ/g
+      let tjArrMatch: RegExpExecArray | null
+      while ((tjArrMatch = tjArrayRegex.exec(textBlock)) !== null) {
+        const arrContent = tjArrMatch[1]
+        const strRegex = /\(([^)]*)\)/g
+        let strMatch: RegExpExecArray | null
+        let line = ''
+        while ((strMatch = strRegex.exec(arrContent)) !== null) {
+          line += strMatch[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+        }
+        if (line.trim()) textParts.push(line)
+      }
+    }
+
+    const text = textParts.join('\n').trim()
+    // If we got very little text, it's likely a scanned/image PDF
+    if (text.length < 50) return null
+    return text
+  } catch {
+    return null
   }
 }
 

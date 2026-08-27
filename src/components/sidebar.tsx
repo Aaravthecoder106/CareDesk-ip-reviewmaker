@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Show, UserButton } from '@clerk/nextjs'
+import { Show, UserButton } from '@/components/clerk-shim'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/language-context'
 import {
