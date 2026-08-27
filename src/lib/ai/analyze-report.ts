@@ -1,7 +1,8 @@
 import 'server-only'
-import { generateTextWithImages, parseJsonReply } from './gemini'
+import { generateTextWithImages, generateText, parseJsonReply } from './gemini'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { regenerateAnalyticsForUser } from '@/lib/data/analytics'
+import { logger } from '@/lib/logger'
 
 interface AnalysisResult {
   summary: string
@@ -28,11 +29,61 @@ Return a JSON object with this exact structure (no markdown, just raw JSON):
 
 If a section has no data, use an empty array. For numeric values, use numbers not strings. For flags, use one of: normal, high, low, critical.`
 
+const TEXT_ANALYSIS_PROMPT = `You are a medical report analyzer. Below is the extracted text from a multi-page medical report. Analyze the text and extract structured data from its ACTUAL content. Do not invent data that is not present.
+
+Return a JSON object with this exact structure (no markdown, just raw JSON):
+{
+  "summary": "A clear 2-3 sentence summary of the report",
+  "labResults": [
+    { "test_name": "Test Name", "value": 123.45, "unit": "mg/dL", "flag": "normal|high|low|critical" }
+  ],
+  "medications": [
+    { "name": "Medication Name", "dose": "10mg", "frequency": "twice daily" }
+  ],
+  "conditions": [
+    { "name": "Condition Name", "status": "active|resolved|chronic" }
+  ]
+}
+
+If a section has no data, use an empty array. For numeric values, use numbers not strings. For flags, use one of: normal, high, low, critical.
+
+Extracted report text:
+`
+
+/** Maximum inline data size (bytes) before falling back to text extraction. */
+const INLINE_LIMIT_BYTES = 8 * 1024 * 1024 // 8 MB
+
+/**
+ * Extract text content from a PDF buffer using pdf-parse.
+ * Returns null if extraction fails or produces too little text.
+ */
+async function extractPdfText(buffer: Buffer): Promise<string | null> {
+  try {
+    const { PDFParse } = await import('pdf-parse')
+    const parser = new PDFParse(new Uint8Array(buffer))
+    const data = await parser.getText()
+    const text = (typeof data === 'string' ? data : data.text ?? '').trim()
+    // If the extracted text is very short (likely a scanned/image PDF),
+    // return null so the caller can try inline data instead.
+    if (text.length < 100) return null
+    return text
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'PDF text extraction failed')
+    return null
+  }
+}
+
 /**
  * Analyze an uploaded report: download the file from the private `reports`
  * bucket, send its content to Gemini, and persist the extracted data.
  * Runs with the service-role client (background pipeline). On any failure the
  * report is marked `failed` so the UI can offer a retry.
+ *
+ * Strategy for large PDFs:
+ * 1. If the PDF is under 8MB, send it inline to Gemini (fast, preserves images).
+ * 2. If the PDF is over 8MB, extract text first and send that to Gemini.
+ * 3. If text extraction fails (scanned PDF), try inline anyway (may fail).
+ * 4. If inline fails for a large PDF, report a clear error.
  */
 export async function analyzeReport(
   reportId: string,
@@ -53,14 +104,65 @@ export async function analyzeReport(
     if (reportError || !report) throw new Error(`report lookup: ${reportError?.message || 'not found'}`)
     const patientId = report.patient_id
 
-    // Download the actual file content and hand it to the model inline.
+    // Download the actual file content.
     const { data: blob, error: dlError } = await admin.storage.from('reports').download(filePath)
     if (dlError || !blob) throw new Error(`storage download: ${dlError?.message || 'empty file'}`)
-    const base64 = Buffer.from(await blob.arrayBuffer()).toString('base64')
 
-    const response = await generateTextWithImages(ANALYSIS_PROMPT, [
-      { data: base64, mimeType: mimeType || 'application/pdf' },
-    ])
+    const buffer = Buffer.from(await blob.arrayBuffer())
+    const fileSizeMB = (buffer.length / 1024 / 1024).toFixed(1)
+    const isPdf = mimeType === 'application/pdf' || filePath.toLowerCase().endsWith('.pdf')
+
+    logger.info({
+      route: 'analyzeReport',
+      reportId,
+      mimeType,
+      fileSizeMB,
+      isPdf,
+    }, 'Starting report analysis')
+
+    let response: string
+
+    if (isPdf && buffer.length > INLINE_LIMIT_BYTES) {
+      // Large PDF: try text extraction first, fall back to inline
+      logger.info({ reportId, fileSizeMB }, 'Large PDF detected, attempting text extraction')
+
+      const extractedText = await extractPdfText(buffer)
+
+      if (extractedText) {
+        logger.info({ reportId, textLength: extractedText.length }, 'PDF text extracted successfully, sending to Gemini')
+
+        // Truncate if extremely long (Gemini context limit)
+        const maxChars = 100_000
+        const truncatedText = extractedText.length > maxChars
+          ? extractedText.slice(0, maxChars) + '\n\n[... truncated, text exceeded character limit ...]'
+          : extractedText
+
+        response = await generateText(TEXT_ANALYSIS_PROMPT + truncatedText)
+      } else {
+        // Text extraction failed (likely scanned/image PDF) — try inline
+        logger.info({ reportId, fileSizeMB }, 'Text extraction yielded little content, trying inline data')
+
+        const base64 = buffer.toString('base64')
+        try {
+          response = await generateTextWithImages(ANALYSIS_PROMPT, [
+            { data: base64, mimeType },
+          ])
+        } catch (inlineErr) {
+          const inlineMsg = inlineErr instanceof Error ? inlineErr.message : String(inlineErr)
+          logger.error({ reportId, fileSizeMB, err: inlineMsg }, 'Inline data also failed for large PDF')
+          throw new Error(
+            `This PDF is too large (${fileSizeMB} MB) for inline analysis, and text extraction failed (the PDF may be a scanned document). ` +
+            `Try: (1) compress the PDF, (2) split into smaller files, or (3) convert pages to images and upload those instead.`
+          )
+        }
+      }
+    } else {
+      // Small PDF or image: send inline (preserves visual data)
+      const base64 = buffer.toString('base64')
+      response = await generateTextWithImages(ANALYSIS_PROMPT, [
+        { data: base64, mimeType },
+      ])
+    }
 
     let parsed: AnalysisResult
     try {
@@ -137,18 +239,25 @@ export async function analyzeReport(
     // Auto-regenerate analytics snapshot
     await regenerateAnalyticsForUser(patientId).catch(() => {})
 
+    logger.info({
+      route: 'analyzeReport',
+      reportId,
+      labResults: parsed.labResults.length,
+      medications: parsed.medications.length,
+      conditions: parsed.conditions.length,
+    }, 'Report analysis completed successfully')
+
     return { ok: true, analysis: parsed }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Analysis failed'
-    await admin.from('reports').update({ status: 'failed' }).eq('id', reportId)
-    console.error(`[analyzeReport ${reportId}] ${message}`)
+    await admin.from('reports').update({ status: 'failed', ai_summary: `[Analysis failed] ${message}` }).eq('id', reportId)
+    logger.error({ route: 'analyzeReport', reportId, err: message }, 'Report analysis failed')
     return { ok: false, error: message }
   }
 }
 
 /**
- * Architecture: "both gets notification if any noticable changes occur in
- * their medical biology". Notify every ACCEPTED family link (either direction)
+ * Notify every ACCEPTED family link (either direction)
  * when a new report contains abnormal lab flags.
  */
 async function notifyFamilyOfFindings(
