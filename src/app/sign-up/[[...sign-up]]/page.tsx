@@ -1,0 +1,20 @@
+import { SignUp } from '@clerk/nextjs'
+import Link from 'next/link'
+
+export default function SignUpPage() {
+  return (
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <Link href="/" className="text-lg font-semibold">
+            CareDesk
+          </Link>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Create your account
+          </p>
+        </div>
+        <SignUp />
+      </div>
+    </main>
+  )
+}
