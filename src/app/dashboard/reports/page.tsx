@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useSupabaseUpload } from '@/lib/supabase/browser-client'
+import { useAuth } from '@clerk/nextjs'
+import { getUploadClient } from '@/lib/supabase/browser-client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
@@ -29,7 +30,7 @@ const DIRECT_UPLOAD_THRESHOLD = 3 * 1024 * 1024 // 3 MB
 
 export default function ReportsPage() {
   const { t } = useLanguage()
-  const { getClient, userId } = useSupabaseUpload()
+  const { getToken, userId } = useAuth()
   const [locked, setLocked] = useState<boolean | null>(null)
   const [gatePassword, setGatePassword] = useState('')
   const [gateError, setGateError] = useState('')
@@ -113,7 +114,7 @@ export default function ReportsPage() {
       if (file.size > DIRECT_UPLOAD_THRESHOLD) {
         // LARGE FILE: Upload directly to Supabase Storage from the browser
         setUploadProgress('Uploading to storage...')
-        const supabase = await getClient()
+        const supabase = getUploadClient(getToken)
         const ext = file.name.split('.').pop() || 'bin'
 
         // Upload file directly to Supabase Storage (no Vercel body limit!)

@@ -1,35 +1,29 @@
 'use client'
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { useAuth } from '@clerk/nextjs'
-import { useRef } from 'react'
+
+
+let cachedClient: SupabaseClient | null = null
 
 /**
- * Hook to get a browser-side Supabase client authenticated with the current
- * Clerk user. Used for direct file uploads that bypass Vercel's body size limit.
+ * Get a browser-side Supabase client for direct file uploads.
+ * Pass the Clerk session token and userId from useAuth() in the calling component.
  */
-export function useSupabaseUpload() {
-  const { getToken, userId } = useAuth()
-  const clientRef = useRef<SupabaseClient | null>(null)
+export function getUploadClient(getToken: () => Promise<string | null>): SupabaseClient {
+  if (cachedClient) return cachedClient
 
-  async function getClient(): Promise<SupabaseClient> {
-    if (clientRef.current) return clientRef.current
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase configuration missing')
-    }
-
-    clientRef.current = createClient(supabaseUrl, supabaseAnonKey, {
-      async accessToken() {
-        return (await getToken()) ?? null
-      },
-    })
-
-    return clientRef.current
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase configuration missing')
   }
 
-  return { getClient, userId }
+  cachedClient = createClient(supabaseUrl, supabaseAnonKey, {
+    async accessToken() {
+      return (await getToken()) ?? null
+    },
+  })
+
+  return cachedClient
 }
