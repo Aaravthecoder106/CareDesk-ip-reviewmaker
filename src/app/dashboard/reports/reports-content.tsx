@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useAuth } from '@clerk/nextjs'
-import { getUploadClient } from '@/lib/supabase/browser-client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
@@ -25,12 +23,11 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'text-destructive',
 }
 
-/** Files over this size go directly to Supabase (bypassing Vercel body limit). */
-const DIRECT_UPLOAD_THRESHOLD = 3 * 1024 * 1024 // 3 MB
+/** Files over this size use presigned URL upload to bypass Vercel body limit. */
+const PRESIGN_THRESHOLD = 3 * 1024 * 1024 // 3 MB
 
 export default function ReportsPage() {
   const { t } = useLanguage()
-  const { getToken, userId } = useAuth()
   const [locked, setLocked] = useState<boolean | null>(null)
   const [gatePassword, setGatePassword] = useState('')
   const [gateError, setGateError] = useState('')
@@ -111,50 +108,46 @@ export default function ReportsPage() {
     setUploadProgress('')
 
     try {
-      if (file.size > DIRECT_UPLOAD_THRESHOLD) {
-        // LARGE FILE: Upload directly to Supabase Storage from the browser
-        setUploadProgress('Uploading to storage...')
-        const supabase = getUploadClient(getToken)
-        const ext = file.name.split('.').pop() || 'bin'
+      if (file.size > PRESIGN_THRESHOLD) {
+        // LARGE FILE: Get presigned URL from server, upload directly, then finalize
+        setUploadProgress('Preparing upload...')
+        const presignRes = await fetch('/api/reports/presign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: file.name, mimeType: file.type, fileSize: file.size }),
+        })
+        const presignData = await presignRes.json()
+        if (!presignData.ok) throw new Error(presignData.error || 'Failed to get upload URL')
 
-        // Upload file directly to Supabase Storage (no Vercel body limit!)
-        if (!userId) throw new Error('Not authenticated')
-        const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-        const mimeType = file.type || (ext === 'pdf' ? 'application/pdf' : `image/${ext}`)
+        setUploadProgress('Uploading file...')
+        const uploadRes = await fetch(presignData.uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        })
+        if (!uploadRes.ok) throw new Error(`Direct upload failed: ${uploadRes.statusText}`)
 
-        // Upload file directly to Supabase Storage (no Vercel body limit!)
-        const { error: uploadErr } = await supabase.storage
-          .from('reports')
-          .upload(filePath, file, { contentType: mimeType })
-
-        if (uploadErr) {
-          throw new Error(`Storage upload failed: ${uploadErr.message}`)
-        }
-
-        setUploadProgress('Creating report...')
-
-        // Now tell the server to create the DB record and trigger analysis
-        const res = await fetch('/api/reports/upload', {
+        setUploadProgress('Finalizing...')
+        const finalizeRes = await fetch('/api/reports/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            filePath,
+            filePath: presignData.filePath,
             fileName: file.name,
-            mimeType,
+            mimeType: file.type || 'application/pdf',
             fileSize: file.size,
           }),
         })
-        const data = await res.json()
-        if (data.ok) {
-          setReports(prev => [data.report, ...prev])
+        const finalizeData = await finalizeRes.json()
+        if (finalizeData.ok) {
+          setReports(prev => [finalizeData.report, ...prev])
         } else {
-          setError(data.error || t('reports.errors.uploadFailed'))
+          setError(finalizeData.error || t('reports.errors.uploadFailed'))
         }
       } else {
         // SMALL FILE: Traditional FormData upload through Vercel
         const formData = new FormData()
         formData.append('file', file)
-
         const res = await fetch('/api/reports/upload', { method: 'POST', body: formData })
         const data = await res.json()
         if (data.ok) {
