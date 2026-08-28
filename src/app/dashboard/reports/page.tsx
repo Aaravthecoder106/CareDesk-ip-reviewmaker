@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useSupabaseUpload } from '@/lib/supabase/browser-client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
@@ -23,8 +24,12 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'text-destructive',
 }
 
+/** Files over this size go directly to Supabase (bypassing Vercel body limit). */
+const DIRECT_UPLOAD_THRESHOLD = 3 * 1024 * 1024 // 3 MB
+
 export default function ReportsPage() {
   const { t } = useLanguage()
+  const { getClient, userId } = useSupabaseUpload()
   const [locked, setLocked] = useState<boolean | null>(null)
   const [gatePassword, setGatePassword] = useState('')
   const [gateError, setGateError] = useState('')
@@ -33,6 +38,7 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -101,21 +107,68 @@ export default function ReportsPage() {
 
     setUploading(true)
     setError('')
-    const formData = new FormData()
-    formData.append('file', file)
+    setUploadProgress('')
 
     try {
-      const res = await fetch('/api/reports/upload', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (data.ok) {
-        setReports(prev => [data.report, ...prev])
+      if (file.size > DIRECT_UPLOAD_THRESHOLD) {
+        // LARGE FILE: Upload directly to Supabase Storage from the browser
+        setUploadProgress('Uploading to storage...')
+        const supabase = await getClient()
+        const ext = file.name.split('.').pop() || 'bin'
+
+        // Upload file directly to Supabase Storage (no Vercel body limit!)
+        if (!userId) throw new Error('Not authenticated')
+        const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const mimeType = file.type || (ext === 'pdf' ? 'application/pdf' : `image/${ext}`)
+
+        // Upload file directly to Supabase Storage (no Vercel body limit!)
+        const { error: uploadErr } = await supabase.storage
+          .from('reports')
+          .upload(filePath, file, { contentType: mimeType })
+
+        if (uploadErr) {
+          throw new Error(`Storage upload failed: ${uploadErr.message}`)
+        }
+
+        setUploadProgress('Creating report...')
+
+        // Now tell the server to create the DB record and trigger analysis
+        const res = await fetch('/api/reports/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filePath,
+            fileName: file.name,
+            mimeType,
+            fileSize: file.size,
+          }),
+        })
+        const data = await res.json()
+        if (data.ok) {
+          setReports(prev => [data.report, ...prev])
+        } else {
+          setError(data.error || t('reports.errors.uploadFailed'))
+        }
       } else {
-        setError(data.error || t('reports.errors.uploadFailed'))
+        // SMALL FILE: Traditional FormData upload through Vercel
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await fetch('/api/reports/upload', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.ok) {
+          setReports(prev => [data.report, ...prev])
+        } else {
+          setError(data.error || t('reports.errors.uploadFailed'))
+        }
       }
-    } catch {
-      setError(t('reports.errors.uploadFailed'))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Upload failed: ${msg}`)
+      console.error('Upload error:', err)
     }
     setUploading(false)
+    setUploadProgress('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -224,7 +277,7 @@ export default function ReportsPage() {
             ) : (
               <Upload className="mr-2 size-4" />
             )}
-            {t('reports.upload')}
+            {uploading && uploadProgress ? uploadProgress : t('reports.upload')}
           </Button>
         </div>
       </div>
