@@ -9,8 +9,9 @@ const hasClerkKey = !!(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.length > 10;
 
 function ClerkWrapper({ children }: { children: ReactNode }) {
-  // Dynamic import to avoid Clerk crashing with invalid keys
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { ClerkProvider } = require('@clerk/nextjs');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { shadcn } = require('@clerk/ui/themes');
   return <ClerkProvider appearance={{ theme: shadcn }}>{children}</ClerkProvider>;
 }

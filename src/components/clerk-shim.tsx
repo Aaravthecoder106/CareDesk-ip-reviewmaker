@@ -11,7 +11,7 @@ const hasRealClerk = !!(
 
 // Lazy-loaded real Clerk components
 let RealShow: React.ComponentType<{ when: string; children: ReactNode }> | null = null
-let RealUserButton: React.ComponentType<any> | null = null
+let RealUserButton: React.ComponentType<Record<string, unknown>> | null = null
 
 if (hasRealClerk) {
   try {
@@ -33,7 +33,7 @@ export function Show({ when, children }: { when: string; children: ReactNode }) 
 }
 
 // No-op UserButton: renders a placeholder avatar
-export function UserButton(props: any) {
+export function UserButton(props: Record<string, unknown>) {
   if (RealUserButton) {
     return <RealUserButton {...props} />
   }

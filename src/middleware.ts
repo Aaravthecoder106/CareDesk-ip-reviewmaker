@@ -3,14 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 const skipAuth = !!process.env.SKIP_ENV_VALIDATION;
 
 // Lazy-load Clerk only when needed
-let clerkHandler: ((request: NextRequest) => any) | null = null;
+let clerkHandler: ((request: NextRequest) => ReturnType<typeof NextResponse.next> | ReturnType<typeof NextResponse.redirect>) | null = null;
 
 function getClerkHandler() {
   if (!clerkHandler && !skipAuth) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { clerkMiddleware, createRouteMatcher } = require("@clerk/nextjs/server");
     const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/api/webhooks(.*)"]);
-    clerkHandler = clerkMiddleware(async (auth: any, request: NextRequest) => {
+    clerkHandler = clerkMiddleware(async (auth: { protect(): Promise<void> }, request: NextRequest) => {
       if (!isPublicRoute(request)) {
         await auth.protect();
       }
