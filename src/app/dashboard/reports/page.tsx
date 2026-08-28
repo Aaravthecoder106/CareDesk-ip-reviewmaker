@@ -1,3 +1,5 @@
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const ReportsContent = dynamic(() => import('./reports-content'), { ssr: false })
