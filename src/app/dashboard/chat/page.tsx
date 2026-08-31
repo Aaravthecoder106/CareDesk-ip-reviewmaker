@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { MessageSquare, Send, Trash2, Loader2, ImagePlus, X } from 'lucide-react'
@@ -65,7 +64,6 @@ export default function ChatPage() {
     const userText = input.trim() || 'Please analyze this image.'
     const attached = image
 
-    // Add user message immediately
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -77,7 +75,6 @@ export default function ChatPage() {
     setImage(null)
     setLoading(true)
 
-    // Create a placeholder for the streaming assistant message
     const assistantId = crypto.randomUUID()
     const assistantMsg: Message = {
       id: assistantId,
@@ -89,7 +86,6 @@ export default function ChatPage() {
 
     try {
       if (!attached) {
-        // Streaming path — text-only message
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -115,7 +111,6 @@ export default function ChatPage() {
           if (done) break
           const chunk = decoder.decode(value, { stream: true })
           content += chunk
-          // Update the assistant message with accumulated content
           setMessages(prev =>
             prev.map(m =>
               m.id === assistantId ? { ...m, content } : m,
@@ -123,7 +118,6 @@ export default function ChatPage() {
           )
         }
       } else {
-        // Non-streaming path — with image attachment
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -162,122 +156,126 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-4 sm:p-6 lg:p-8">
+    <div className="flex h-full min-h-0 flex-col p-5 md:p-8">
+      {/* Header */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">{t('chat.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[24px] leading-[32px] font-semibold text-on-surface">{t('chat.title')}</h1>
+          <p className="mt-1 text-[14px] text-on-surface-variant">
             {t('chat.subtitle')}
           </p>
         </div>
         {messages.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={handleClear} className="self-start sm:self-auto">
-            <Trash2 className="mr-2 size-4" />
+          <Button variant="ghost" size="sm" onClick={handleClear} className="self-start sm:self-auto hover:bg-destructive/10">
+            <Trash2 className="mr-2 size-4 text-destructive" />
             {t('chat.clear')}
           </Button>
         )}
       </div>
 
-      <Card className="flex-1 overflow-hidden">
-        <CardContent className="flex h-full flex-col p-0">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {historyLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      {/* Chat Area */}
+      <div className="flex-1 overflow-hidden glass-panel organic-radius flex flex-col">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {historyLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="size-6 animate-spin text-on-surface-variant" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-electric-blue/10 flex items-center justify-center mb-4 ai-glow">
+                <MessageSquare className="size-8 text-electric-blue" />
               </div>
-            ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <MessageSquare className="size-12 text-muted-foreground/50" />
-                <h3 className="mt-4 font-medium">{t('chat.empty.title')}</h3>
-                <p className="mt-1 text-sm text-muted-foreground text-center max-w-sm">
-                  {t('chat.empty.desc')}
-                </p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm sm:max-w-[80%] sm:px-4 ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content || (
-                      msg.role === 'assistant' && loading && msg.id === messages[messages.length - 1]?.id ? (
-                        <Loader2 className="inline size-4 animate-spin" />
-                      ) : null
-                    )}</p>
-                  </div>
-                </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="border-t p-3 sm:p-4">
-            {image && (
-              <div className="mb-2 flex items-center gap-2">
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.preview}
-                    alt="attachment preview"
-                    className="size-16 rounded-md border object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setImage(null)}
-                    className="absolute -right-2 -top-2 rounded-full bg-background border p-0.5 shadow"
-                    aria-label={t('chat.removeImage')}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
-                <span className="text-xs text-muted-foreground">{t('chat.imageAttached')}</span>
-              </div>
-            )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleSend()
-              }}
-              className="flex gap-2"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePickImage}
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-                title={t('chat.attachImage')}
+              <h3 className="mt-2 text-[16px] font-semibold text-deep-navy">{t('chat.empty.title')}</h3>
+              <p className="mt-1 text-[14px] text-on-surface-variant text-center max-w-sm">
+                {t('chat.empty.desc')}
+              </p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <ImagePlus className="size-4" />
-              </Button>
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={t('chat.input.placeholder')}
-                className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                disabled={loading}
-              />
-              <Button type="submit" size="icon" disabled={loading || (!input.trim() && !image)}>
-                <Send className="size-4" />
-              </Button>
-            </form>
-          </div>
-        </CardContent>
-      </Card>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-[14px] sm:max-w-[80%] ${
+                    msg.role === 'user'
+                      ? 'bg-primary text-white'
+                      : 'glass-panel text-on-surface'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content || (
+                    msg.role === 'assistant' && loading && msg.id === messages[messages.length - 1]?.id ? (
+                      <Loader2 className="inline size-4 animate-spin" />
+                    ) : null
+                  )}</p>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t border-outline-variant/30 p-3 sm:p-4">
+          {image && (
+            <div className="mb-2 flex items-center gap-2">
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={image.preview}
+                  alt="attachment preview"
+                  className="size-16 rounded-lg border border-outline-variant object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImage(null)}
+                  className="absolute -right-2 -top-2 rounded-full bg-white border border-outline-variant p-0.5 shadow-sm"
+                  aria-label={t('chat.removeImage')}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+              <span className="text-[12px] text-on-surface-variant">{t('chat.imageAttached')}</span>
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSend()
+            }}
+            className="flex gap-2"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePickImage}
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              title={t('chat.attachImage')}
+              className="border-outline-variant/50 hover:bg-surface-container"
+            >
+              <ImagePlus className="size-4 text-on-surface-variant" />
+            </Button>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t('chat.input.placeholder')}
+              className="flex-1 rounded-xl bg-white/50 border border-outline-variant/50 px-4 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all"
+              disabled={loading}
+            />
+            <Button type="submit" size="icon" disabled={loading || (!input.trim() && !image)} className="btn-primary-gradient rounded-xl">
+              <Send className="size-4" />
+            </Button>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { FolderOpen, Upload, Trash2, RefreshCw, FileText, Loader2, Lock, Eye } from 'lucide-react'
@@ -21,6 +20,13 @@ const STATUS_STYLES: Record<string, string> = {
   processing: 'text-blue-600',
   ready: 'text-green-600',
   failed: 'text-destructive',
+}
+
+const STATUS_BG: Record<string, string> = {
+  pending: 'bg-amber-50 border-amber-200',
+  processing: 'bg-blue-50 border-blue-200',
+  ready: 'bg-green-50 border-green-200',
+  failed: 'bg-red-50 border-red-200',
 }
 
 /** Files over this size use presigned URL upload to bypass Vercel body limit. */
@@ -109,7 +115,6 @@ export default function ReportsPage() {
 
     try {
       if (file.size > PRESIGN_THRESHOLD) {
-        // LARGE FILE: Get presigned URL from server, upload directly, then finalize
         setUploadProgress('Preparing upload...')
         const presignRes = await fetch('/api/reports/presign', {
           method: 'POST',
@@ -145,7 +150,6 @@ export default function ReportsPage() {
           setError(finalizeData.error || t('reports.errors.uploadFailed'))
         }
       } else {
-        // SMALL FILE: Traditional FormData upload through Vercel
         const formData = new FormData()
         formData.append('file', file)
         const res = await fetch('/api/reports/upload', { method: 'POST', body: formData })
@@ -211,7 +215,7 @@ export default function ReportsPage() {
   if (locked === null) {
     return (
       <div className="flex justify-center py-24">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="size-8 animate-spin text-on-surface-variant" />
       </div>
     )
   }
@@ -219,12 +223,14 @@ export default function ReportsPage() {
   if (locked) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6">
-        <Card className="w-full max-w-sm">
-          <CardContent className="flex flex-col items-center gap-4 py-10">
-            <Lock className="size-10 text-primary/70" />
+        <div className="glass-panel organic-radius w-full max-w-sm p-8">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="size-8 text-primary/70" />
+            </div>
             <div className="text-center">
-              <h2 className="font-semibold">{t('reports.locked.title')}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h2 className="text-[18px] font-semibold text-deep-navy">{t('reports.locked.title')}</h2>
+              <p className="mt-1 text-[14px] text-on-surface-variant">
                 {t('reports.locked.desc')}
               </p>
             </div>
@@ -234,26 +240,27 @@ export default function ReportsPage() {
               onChange={(e) => setGatePassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
               placeholder={t('reports.locked.placeholder')}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg bg-white/50 border border-outline-variant px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary"
               autoFocus
             />
             {gateError && <p className="text-sm text-destructive">{gateError}</p>}
-            <Button className="w-full" onClick={handleUnlock} disabled={unlocking || !gatePassword}>
+            <Button className="w-full btn-primary-gradient" onClick={handleUnlock} disabled={unlocking || !gatePassword}>
               {unlocking ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Lock className="mr-2 size-4" />}
               {t('reports.locked.unlock')}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-5 md:p-8">
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">{t('reports.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[24px] leading-[32px] font-semibold text-on-surface">{t('reports.title')}</h1>
+          <p className="mt-1 text-[14px] text-on-surface-variant">
             {t('reports.subtitle')}
           </p>
         </div>
@@ -265,7 +272,7 @@ export default function ReportsPage() {
             onChange={handleUpload}
             className="hidden"
           />
-          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full sm:w-auto">
+          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="btn-primary-gradient w-full sm:w-auto">
             {uploading ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
@@ -276,38 +283,52 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* AI Summary Overview */}
+      <div className="mb-6 glass-panel rounded-xl p-4 border border-electric-blue/10 ai-glow">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="material-symbols-outlined text-secondary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+          <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-secondary">AI Health Overview</span>
+        </div>
+        <p className="text-[16px] text-on-surface">
+          Based on your recent reports, AI analysis provides personalized insights for your health journey.
+        </p>
+      </div>
+
+      {/* Error */}
       {error && (
-        <Card className="mb-4 border-destructive/50">
-          <CardContent className="py-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </CardContent>
-        </Card>
+        <div className="mb-4 glass-panel rounded-xl p-4 border border-destructive/30">
+          <p className="text-[14px] text-destructive">{error}</p>
+        </div>
       )}
 
+      {/* Content */}
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          <Loader2 className="size-8 animate-spin text-on-surface-variant" />
         </div>
       ) : reports.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <FolderOpen className="size-12 text-muted-foreground/50" />
-            <h3 className="mt-4 font-medium">{t('reports.empty.title')}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t('reports.empty.desc')}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="glass-panel organic-radius flex flex-col items-center justify-center py-16">
+          <FolderOpen className="size-12 text-on-surface-variant/50" />
+          <h3 className="mt-4 text-[16px] font-semibold text-deep-navy">{t('reports.empty.title')}</h3>
+          <p className="mt-1 text-[14px] text-on-surface-variant">
+            {t('reports.empty.desc')}
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {reports.map((report) => (
-            <Card key={report.id}>
-              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={report.id} className={`glass-panel rounded-xl p-4 hover:bg-white/60 transition-all duration-200 cursor-pointer border ${report.status === 'failed' ? 'border-destructive/30' : 'border-outline-variant/30'} relative overflow-hidden`}>
+              {report.status === 'failed' && (
+                <div className="absolute top-0 left-0 w-1 h-full bg-destructive"></div>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                  <FileText className="size-8 shrink-0 text-primary/70" />
+                  <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+                    <FileText className="size-5 text-secondary" />
+                  </div>
                   <div className="min-w-0">
-                    <h3 className="truncate font-medium">{report.title}</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <h3 className="truncate text-[16px] font-semibold text-deep-navy">{report.title}</h3>
+                    <p className="text-[12px] text-on-surface-variant">
                       {new Date(report.created_at).toLocaleDateString()}
                       <span className={`ml-2 capitalize ${STATUS_STYLES[report.status] || ''}`}>
                         {report.status === 'ready' ? t('reports.status.analyzed') : report.status}
@@ -317,9 +338,11 @@ export default function ReportsPage() {
                       </span>
                     </p>
                     {report.ai_summary && (
-                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                        {report.ai_summary}
-                      </p>
+                      <div className="mt-2 bg-electric-blue/5 rounded-lg p-2.5 border border-electric-blue/10">
+                        <p className="text-[14px] text-on-surface line-clamp-2">
+                          {report.ai_summary}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -329,8 +352,9 @@ export default function ReportsPage() {
                     size="icon-sm"
                     onClick={() => handlePreview(report.id)}
                     title={t('reports.viewDocument')}
+                    className="hover:bg-surface-container"
                   >
-                    <Eye className="size-4" />
+                    <Eye className="size-4 text-on-surface-variant" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -338,23 +362,25 @@ export default function ReportsPage() {
                     onClick={() => handleReanalyze(report.id)}
                     disabled={analyzing === report.id}
                     title={t('reports.reanalyze')}
+                    className="hover:bg-surface-container"
                   >
                     {analyzing === report.id ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin text-secondary" />
                     ) : (
-                      <RefreshCw className="size-4" />
+                      <RefreshCw className="size-4 text-on-surface-variant" />
                     )}
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => handleDelete(report.id)}
+                    className="hover:bg-destructive/10"
                   >
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}

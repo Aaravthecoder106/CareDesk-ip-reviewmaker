@@ -9,11 +9,11 @@ const hasClerkKey = !!(
 export default function SignUpPage() {
   if (!hasClerkKey) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <div className="w-full max-w-sm text-center">
-          <Link href="/" className="text-lg font-semibold">CareDesk</Link>
-          <p className="mt-6 text-muted-foreground">Authentication is not configured. Please set up Clerk keys in your .env file.</p>
-          <Link href="/" className="mt-4 inline-block text-sm text-primary hover:underline">← Back to home</Link>
+      <main className="flex min-h-screen items-center justify-center p-6 bg-background">
+        <div className="glass-panel organic-radius w-full max-w-sm text-center p-10">
+          <Link href="/" className="text-xl font-bold text-deep-navy tracking-tight">CareDesk</Link>
+          <p className="mt-6 text-[14px] text-on-surface-variant">Authentication is not configured. Please set up Clerk keys in your .env file.</p>
+          <Link href="/" className="mt-4 inline-block text-[14px] text-secondary hover:underline">← Back to home</Link>
         </div>
       </main>
     )
@@ -22,11 +22,11 @@ export default function SignUpPage() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { SignUp } = require('@clerk/nextjs')
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center p-6 bg-background">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-lg font-semibold">CareDesk</Link>
-          <p className="mt-2 text-sm text-muted-foreground">Create your account</p>
+          <Link href="/" className="text-xl font-bold text-deep-navy tracking-tight">CareDesk</Link>
+          <p className="mt-2 text-[14px] text-on-surface-variant">Create your account</p>
         </div>
         <SignUp />
       </div>

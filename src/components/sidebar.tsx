@@ -30,9 +30,17 @@ export function Sidebar() {
   ]
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r bg-sidebar lg:block">
+    <aside className="hidden w-56 shrink-0 border-r border-outline-variant/40 bg-surface-container-low lg:block">
       <div className="flex h-full flex-col">
-        <nav className="flex-1 space-y-1 p-3">
+        {/* Brand */}
+        <div className="px-5 py-5 border-b border-outline-variant/30">
+          <Link href="/" className="font-bold text-lg text-deep-navy tracking-tight">
+            CareDesk
+          </Link>
+        </div>
+
+        {/* Nav Items */}
+        <nav className="flex-1 space-y-1 p-3 mt-2">
           {navItems.map((item) => {
             const isActive =
               item.href === '/dashboard'
@@ -43,20 +51,21 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                    ? 'bg-primary/10 text-primary border border-primary/10'
+                    : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
                 )}
               >
-                <item.icon className="size-4 shrink-0" />
+                <item.icon className={cn('size-4 shrink-0', isActive && 'text-primary')} />
                 {item.label}
               </Link>
             )
           })}
         </nav>
 
-        <div className="border-t p-3">
+        {/* Account */}
+        <div className="border-t border-outline-variant/30 p-3">
           <Show when="signed-in">
             <div className="flex items-center gap-2.5 px-3 py-2">
               <UserButton
@@ -66,7 +75,7 @@ export function Sidebar() {
                   },
                 }}
               />
-              <span className="text-xs text-muted-foreground">{t('nav.account')}</span>
+              <span className="text-xs text-on-surface-variant">{t('nav.account')}</span>
             </div>
           </Show>
         </div>

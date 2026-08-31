@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { BarChart3, RefreshCw, Loader2, TrendingUp, Pill, AlertCircle, FileText } from 'lucide-react'
@@ -35,7 +34,7 @@ interface FamilySnapshot {
   data: AnalyticsData
 }
 
-const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#3b82f6']
+const COLORS = ['#0059bb', '#00E0FF', '#a9c7ff', '#002b5b']
 
 export default function AnalyticsPage() {
   const { t } = useLanguage()
@@ -101,17 +100,25 @@ export default function AnalyticsPage() {
       ]
     : []
 
+  const statCards = [
+    { label: t('analytics.healthScore'), value: data?.healthScore || '—', icon: TrendingUp, color: 'text-secondary', bg: 'bg-secondary/10' },
+    { label: t('analytics.activeMedications'), value: data?.medicationSummary?.active || 0, icon: Pill, color: 'text-electric-blue', bg: 'bg-electric-blue/10' },
+    { label: t('analytics.conditions'), value: data?.conditionSummary?.active || 0, icon: AlertCircle, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: t('analytics.reports'), value: data?.reportStats?.total || 0, icon: FileText, color: 'text-secondary', bg: 'bg-secondary/10' },
+  ]
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-5 md:p-8">
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">{t('analytics.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[24px] leading-[32px] font-semibold text-on-surface">{t('analytics.title')}</h1>
+          <p className="mt-1 text-[14px] text-on-surface-variant">
             {t('analytics.subtitle')}
           </p>
         </div>
         {viewing === 'me' && (
-          <Button onClick={handleRegenerate} disabled={regenerating} variant="outline" className="w-full sm:w-auto">
+          <Button onClick={handleRegenerate} disabled={regenerating} variant="outline" className="w-full sm:w-auto border-outline-variant/50 hover:bg-surface-container">
             {regenerating ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
@@ -122,189 +129,152 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* Family Tabs */}
       {family.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
-          <Button
-            variant={viewing === 'me' ? 'default' : 'outline'}
-            size="sm"
+          <button
             onClick={() => setViewing('me')}
+            className={`px-4 py-1.5 rounded-full text-[14px] font-medium transition-all ${
+              viewing === 'me'
+                ? 'bg-primary text-white'
+                : 'glass-panel text-on-surface-variant hover:bg-white/60'
+            }`}
           >
             {t('analytics.myAnalytics')}
-          </Button>
+          </button>
           {family.map((f) => (
-            <Button
+            <button
               key={f.user_id}
-              variant={viewing === f.user_id ? 'default' : 'outline'}
-              size="sm"
               onClick={() => setViewing(f.user_id)}
+              className={`px-4 py-1.5 rounded-full text-[14px] font-medium transition-all ${
+                viewing === f.user_id
+                  ? 'bg-primary text-white'
+                  : 'glass-panel text-on-surface-variant hover:bg-white/60'
+              }`}
             >
               {f.name}
-            </Button>
+            </button>
           ))}
         </div>
       )}
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          <Loader2 className="size-8 animate-spin text-on-surface-variant" />
         </div>
       ) : !data ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <BarChart3 className="size-12 text-muted-foreground/50" />
-            <h3 className="mt-4 font-medium">{t('analytics.empty.title')}</h3>
-            <p className="mt-1 text-sm text-muted-foreground text-center max-w-sm">
-              {viewing === 'me'
-                ? t('analytics.empty.ownDesc')
-                : t('analytics.empty.familyDesc', { name: viewingFamily?.name || 'They' })}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="glass-panel organic-radius flex flex-col items-center justify-center py-16">
+          <BarChart3 className="size-12 text-on-surface-variant/50" />
+          <h3 className="mt-4 text-[16px] font-semibold text-deep-navy">{t('analytics.empty.title')}</h3>
+          <p className="mt-1 text-[14px] text-on-surface-variant text-center max-w-sm">
+            {viewing === 'me'
+              ? t('analytics.empty.ownDesc')
+              : t('analytics.empty.familyDesc', { name: viewingFamily?.name || 'They' })}
+          </p>
+        </div>
       ) : (
         <>
-          {/* Health Score */}
+          {/* Stat Cards */}
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{t('analytics.healthScore')}</CardTitle>
-                <TrendingUp className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.healthScore || '—'}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{t('analytics.activeMedications')}</CardTitle>
-                <Pill className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.medicationSummary?.active || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{t('analytics.conditions')}</CardTitle>
-                <AlertCircle className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.conditionSummary?.active || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{t('analytics.reports')}</CardTitle>
-                <FileText className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.reportStats?.total || 0}</div>
-              </CardContent>
-            </Card>
+            {statCards.map((card) => (
+              <div key={card.label} className="glass-panel organic-radius p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[12px] font-bold tracking-wide uppercase text-on-surface-variant">{card.label}</span>
+                  <div className={`w-8 h-8 rounded-full ${card.bg} flex items-center justify-center`}>
+                    <card.icon className={`size-4 ${card.color}`} />
+                  </div>
+                </div>
+                <div className="text-[24px] font-bold text-deep-navy">{card.value}</div>
+              </div>
+            ))}
           </div>
 
-          {/* Insights */}
+          {/* AI Insights */}
           {data.insights && data.insights.length > 0 && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">{t('analytics.aiInsights')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {data.insights.map((insight, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <TrendingUp className="mt-0.5 size-4 shrink-0 text-primary" />
-                      {insight}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+            <div className="mb-6 glass-panel rounded-xl p-5 border border-electric-blue/10 ai-glow">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="material-symbols-outlined text-secondary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-secondary">{t('analytics.aiInsights')}</span>
+              </div>
+              <ul className="space-y-2">
+                {data.insights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[14px] text-on-surface">
+                    <TrendingUp className="mt-0.5 size-4 shrink-0 text-secondary" />
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {/* Charts */}
           <div className="grid gap-6 lg:grid-cols-2">
             {labChartData.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">{t('analytics.labTrends')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={labChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="glass-panel organic-radius p-5">
+                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.labTrends')}</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={labChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#c4c6d0" />
+                    <XAxis dataKey="name" fontSize={12} tick={{ fill: '#43474f' }} />
+                    <YAxis fontSize={12} tick={{ fill: '#43474f' }} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#0059bb" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
 
             {conditionData.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">{t('analytics.conditions')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={conditionData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {conditionData.map((_, index) => (
-                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="glass-panel organic-radius p-5">
+                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.conditions')}</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={conditionData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                    >
+                      {conditionData.map((_, index) => (
+                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             )}
 
             {reportData.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">{t('analytics.reportStatus')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={reportData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="glass-panel organic-radius p-5">
+                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.reportStatus')}</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={reportData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#c4c6d0" />
+                    <XAxis dataKey="name" fontSize={12} tick={{ fill: '#43474f' }} />
+                    <YAxis fontSize={12} tick={{ fill: '#43474f' }} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#0059bb" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
 
             {labChartData.length > 1 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">{t('analytics.labTimeline')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={labChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="glass-panel organic-radius p-5">
+                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.labTimeline')}</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={labChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#c4c6d0" />
+                    <XAxis dataKey="date" fontSize={12} tick={{ fill: '#43474f' }} />
+                    <YAxis fontSize={12} tick={{ fill: '#43474f' }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="value" stroke="#0059bb" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
         </>
