@@ -6,6 +6,8 @@ import { apiLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { familyInviteSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
+import { getUserSubscription, getUserFamilyCount } from '@/lib/data/subscriptions'
+import { getPlanLimits } from '@/lib/stripe'
 
 export async function POST(req: NextRequest) {
   const start = Date.now()
@@ -15,6 +17,19 @@ export async function POST(req: NextRequest) {
 
     const rateLimited = applyRateLimit(req, apiLimiter, userId)
     if (rateLimited) return rateLimited
+
+    // Check family member limit
+    const [tier, familyCount] = await Promise.all([
+      getUserSubscription(userId),
+      getUserFamilyCount(userId),
+    ])
+    const limits = getPlanLimits(tier)
+    if (limits.maxFamilyMembers > 0 && familyCount >= limits.maxFamilyMembers) {
+      return apiError(
+        `You've reached the ${limits.maxFamilyMembers}-member limit on the Free plan. Upgrade to Pro for up to 4 family members.`,
+        403
+      )
+    }
 
     const body = await req.json()
     const parsed = familyInviteSchema.safeParse(body)
