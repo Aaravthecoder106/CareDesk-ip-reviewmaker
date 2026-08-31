@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { upsertSubscription, cancelSubscription } from '@/lib/data/subscriptions'
 import Stripe from 'stripe'
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
+    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         const subscriptionId = session.subscription as string
         if (!subscriptionId) break
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
         const sub = subscription as unknown as {
           current_period_start: number
           current_period_end: number
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         const subscriptionId = inv.subscription
         if (!subscriptionId) break
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId)
         const userId = subscription.metadata?.clerk_user_id
         const plan = subscription.metadata?.plan
 

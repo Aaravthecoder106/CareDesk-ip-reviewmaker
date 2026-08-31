@@ -5,7 +5,7 @@ import { Show } from '@/components/clerk-shim'
 import { useLanguage } from '@/lib/i18n/language-context'
 
 export default function Home() {
-  const { t } = useLanguage()
+  useLanguage()
 
   return (
     <div className="min-h-screen bg-background text-on-surface overflow-x-hidden">

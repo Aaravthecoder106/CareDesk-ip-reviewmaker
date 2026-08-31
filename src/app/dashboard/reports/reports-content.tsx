@@ -22,12 +22,7 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'text-destructive',
 }
 
-const STATUS_BG: Record<string, string> = {
-  pending: 'bg-amber-50 border-amber-200',
-  processing: 'bg-blue-50 border-blue-200',
-  ready: 'bg-green-50 border-green-200',
-  failed: 'bg-red-50 border-red-200',
-}
+
 
 /** Files over this size use presigned URL upload to bypass Vercel body limit. */
 const PRESIGN_THRESHOLD = 3 * 1024 * 1024 // 3 MB

@@ -13,17 +13,15 @@ interface SubscriptionStatus {
 
 export default function UpgradePage() {
   const { t } = useLanguage()
-  const [annual, setAnnual] = useState(true) // Default to annual (better value)
+  const [annual, setAnnual] = useState(true)
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
-  const [statusLoading, setStatusLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/subscription/status')
       .then(r => r.json())
       .then(setStatus)
       .catch(() => {})
-      .finally(() => setStatusLoading(false))
   }, [])
 
   async function handleCheckout(plan: 'pro_monthly' | 'pro_annual') {

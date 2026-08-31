@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { stripe, PLANS } from '@/lib/stripe'
+import { getStripe, PLANS } from '@/lib/stripe'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 
 /**
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         .eq('id', userId)
         .single()
 
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: user?.email || undefined,
         metadata: { clerk_user_id: userId },
       })
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],

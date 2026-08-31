@@ -1,12 +1,19 @@
 import Stripe from 'stripe'
 
 /**
- * Stripe server-side client.
- * Requires STRIPE_SECRET_KEY env var.
+ * Lazy Stripe server-side client.
+ * Only initializes when first called at runtime (not during build).
  */
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  typescript: true,
-})
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      typescript: true,
+    })
+  }
+  return _stripe
+}
 
 /**
  * Subscription plan definitions.
