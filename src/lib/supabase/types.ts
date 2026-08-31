@@ -500,8 +500,8 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          stripe_customer_id: string | null;
-          stripe_subscription_id: string | null;
+          razorpay_order_id: string | null;
+          razorpay_payment_id: string | null;
           plan: string;
           status: string;
           current_period_start: string | null;
@@ -512,8 +512,8 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          stripe_customer_id?: string | null;
-          stripe_subscription_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_payment_id?: string | null;
           plan?: string;
           status?: string;
           current_period_start?: string | null;
@@ -524,8 +524,8 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          stripe_customer_id?: string | null;
-          stripe_subscription_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_payment_id?: string | null;
           plan?: string;
           status?: string;
           current_period_start?: string | null;

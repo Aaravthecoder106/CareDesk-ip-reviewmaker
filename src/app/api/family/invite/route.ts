@@ -7,7 +7,7 @@ import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { familyInviteSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
 import { getUserSubscription, getUserFamilyCount } from '@/lib/data/subscriptions'
-import { getPlanLimits } from '@/lib/stripe'
+import { getPlanLimits } from '@/lib/razorpay'
 
 export async function POST(req: NextRequest) {
   const start = Date.now()

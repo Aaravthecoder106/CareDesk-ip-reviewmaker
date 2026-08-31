@@ -11,6 +11,12 @@ interface SubscriptionStatus {
   usage: { reports: number; familyMembers: number }
 }
 
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => { open: () => void }
+  }
+}
+
 export default function UpgradePage() {
   const { t } = useLanguage()
   const [annual, setAnnual] = useState(true)
@@ -27,39 +33,70 @@ export default function UpgradePage() {
   async function handleCheckout(plan: 'pro_monthly' | 'pro_annual') {
     setLoading(true)
     try {
-      const res = await fetch('/api/stripe/checkout', {
+      // Create order on server
+      const orderRes = await fetch('/api/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),
       })
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        alert(data.error || 'Failed to start checkout')
+      const orderData = await orderRes.json()
+      if (!orderData.orderId) {
+        alert(orderData.error || 'Failed to create order')
+        setLoading(false)
+        return
       }
-    } catch {
-      alert('Failed to start checkout')
-    }
-    setLoading(false)
-  }
 
-  async function handleManageBilling() {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
+      // Open Razorpay checkout
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'CareDesk',
+        description: plan === 'pro_monthly' ? 'CareDesk Pro — Monthly' : 'CareDesk Pro — Annual',
+        order_id: orderData.orderId,
+        handler: async function (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
+          // Verify payment on server
+          const verifyRes = await fetch('/api/razorpay/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              plan,
+            }),
+          })
+          const verifyData = await verifyRes.json()
+          if (verifyData.ok) {
+            window.location.href = '/dashboard/upgrade?success=true'
+          } else {
+            alert('Payment verification failed. Please contact support.')
+          }
+        },
+        prefill: {
+          name: '',
+          email: '',
+        },
+        theme: {
+          color: '#0059bb',
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false)
+          },
+        },
       }
-    } catch {
-      console.error('Portal error')
+
+      const rzp = new window.Razorpay(options)
+      rzp.open()
+    } catch (err) {
+      alert('Payment failed to initialize. Please try again.')
+      console.error('Checkout error:', err)
     }
     setLoading(false)
   }
 
   const isPro = status?.tier === 'pro_monthly' || status?.tier === 'pro_annual'
-  const currentPlan = annual ? 'pro_annual' : 'pro_monthly'
 
   const freeFeatures = [
     'Up to 2 report uploads',
@@ -78,6 +115,9 @@ export default function UpgradePage() {
 
   return (
     <div className="p-5 md:p-8">
+      {/* Razorpay Script */}
+      <script src="https://checkout.razorpay.com/v1/checkout.js" async />
+
       {/* Header */}
       <div className="mb-8 text-center max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border-electric-blue/30 mb-4">
@@ -130,7 +170,7 @@ export default function UpgradePage() {
             <p className="text-[14px] text-on-surface-variant">Perfect for trying out CareDesk</p>
           </div>
           <div className="mb-6">
-            <span className="text-[40px] font-bold text-deep-navy">$0</span>
+            <span className="text-[40px] font-bold text-deep-navy">₹0</span>
             <span className="text-[16px] text-on-surface-variant ml-1">forever</span>
           </div>
           <ul className="space-y-3 mb-8 flex-grow">
@@ -171,13 +211,13 @@ export default function UpgradePage() {
           <div className="mb-6">
             {annual ? (
               <>
-                <span className="text-[40px] font-bold text-deep-navy">$7.99</span>
+                <span className="text-[40px] font-bold text-deep-navy">₹399</span>
                 <span className="text-[16px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[13px] text-secondary font-medium mt-1">$95 billed yearly — Save 20%</p>
+                <p className="text-[13px] text-secondary font-medium mt-1">₹4,788 billed yearly — Save 20%</p>
               </>
             ) : (
               <>
-                <span className="text-[40px] font-bold text-deep-navy">$9.99</span>
+                <span className="text-[40px] font-bold text-deep-navy">₹499</span>
                 <span className="text-[16px] text-on-surface-variant ml-1">/month</span>
                 <p className="text-[13px] text-on-surface-variant mt-1">Billed monthly</p>
               </>
@@ -205,17 +245,12 @@ export default function UpgradePage() {
           </ul>
 
           {isPro ? (
-            <Button
-              onClick={handleManageBilling}
-              disabled={loading}
-              className="w-full btn-primary-gradient"
-            >
-              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              Manage Subscription
+            <Button variant="outline" className="w-full border-outline-variant/50" disabled>
+              Active Subscription
             </Button>
           ) : (
             <Button
-              onClick={() => handleCheckout(currentPlan)}
+              onClick={() => handleCheckout(annual ? 'pro_annual' : 'pro_monthly')}
               disabled={loading}
               className="w-full btn-primary-gradient"
             >
@@ -280,9 +315,10 @@ export default function UpgradePage() {
         <h2 className="text-[20px] font-semibold text-deep-navy text-center mb-6">Frequently Asked Questions</h2>
         <div className="space-y-4">
           {[
-            { q: 'Can I cancel anytime?', a: 'Yes, you can cancel your Pro subscription anytime. Your access continues until the end of the billing period.' },
+            { q: 'Is payment secure?', a: 'Payments are processed through Razorpay, India\'s most trusted payment gateway. Your card details are never stored on our servers.' },
             { q: 'What happens when I reach the 2-report limit?', a: 'You can still view existing reports, but you\'ll need to upgrade to Pro to upload more. Your existing data is always safe.' },
             { q: 'Can I share Pro with my family?', a: 'Pro includes up to 4 family member profiles. Each member gets their own dashboard and health insights.' },
+            { q: 'How do I get a refund?', a: 'Contact us within 7 days of payment for a full refund. We\'re confident you\'ll love CareDesk Pro.' },
           ].map((faq) => (
             <div key={faq.q} className="glass-panel rounded-xl p-5">
               <h4 className="text-[15px] font-semibold text-deep-navy mb-2">{faq.q}</h4>

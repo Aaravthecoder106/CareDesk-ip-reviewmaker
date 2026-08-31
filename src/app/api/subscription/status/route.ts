@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserSubscription, getUserReportCount, getUserFamilyCount, getSubscriptionDetails } from '@/lib/data/subscriptions'
-import { getPlanLimits, PLANS } from '@/lib/stripe'
+import { getPlanLimits, PLANS } from '@/lib/razorpay'
 
 /**
  * GET /api/subscription/status
@@ -37,7 +37,7 @@ export async function GET() {
       subscription: {
         status: details.status,
         currentPeriodEnd: details.currentPeriodEnd,
-        stripeSubscriptionId: details.stripeSubscriptionId,
+        razorpayPaymentId: details.razorpayPaymentId,
       },
     })
   } catch (error) {

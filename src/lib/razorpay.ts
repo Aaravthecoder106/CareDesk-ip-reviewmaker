@@ -1,28 +1,30 @@
-import Stripe from 'stripe'
+import Razorpay from 'razorpay'
 
 /**
- * Lazy Stripe server-side client.
+ * Lazy Razorpay server-side client.
  * Only initializes when first called at runtime (not during build).
  */
-let _stripe: Stripe | null = null
+let _razorpay: Razorpay | null = null
 
-export function getStripe(): Stripe {
-  if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      typescript: true,
+export function getRazorpay(): Razorpay {
+  if (!_razorpay) {
+    _razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
     })
   }
-  return _stripe
+  return _razorpay
 }
 
 /**
- * Subscription plan definitions.
- * Price IDs must be created in Stripe Dashboard and set as env vars.
+ * Subscription plan definitions with INR pricing.
+ * Plan IDs must be created in Razorpay Dashboard and set as env vars.
  */
 export const PLANS = {
   free: {
     name: 'Free',
     price: 0,
+    priceInPaise: 0,
     interval: null as null,
     maxReports: 2,
     maxFamilyMembers: 0,
@@ -35,9 +37,10 @@ export const PLANS = {
   },
   pro_monthly: {
     name: 'CareDesk Pro',
-    price: 9.99,
-    interval: 'month' as const,
-    priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,
+    price: 499,
+    priceFormatted: '₹499',
+    interval: 'monthly' as const,
+    planId: process.env.RAZORPAY_PLAN_MONTHLY_ID!,
     maxReports: Infinity,
     maxFamilyMembers: 4,
     features: [
@@ -50,10 +53,12 @@ export const PLANS = {
   },
   pro_annual: {
     name: 'CareDesk Pro',
-    price: 7.99,
-    interval: 'year' as const,
-    annualTotal: 95,
-    priceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID!,
+    price: 399,
+    priceFormatted: '₹399',
+    interval: 'yearly' as const,
+    annualTotal: 4788,
+    annualTotalFormatted: '₹4,788',
+    planId: process.env.RAZORPAY_PLAN_ANNUAL_ID!,
     maxReports: Infinity,
     maxFamilyMembers: 4,
     features: [
@@ -68,6 +73,23 @@ export const PLANS = {
 } as const
 
 export type PlanTier = 'free' | 'pro_monthly' | 'pro_annual'
+
+/**
+ * Verify a Razorpay payment signature.
+ */
+export function verifyRazorpaySignature(params: {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
+}): boolean {
+  const crypto = require('crypto') as typeof import('crypto')
+  const body = `${params.razorpay_order_id}|${params.razorpay_payment_id}`
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+    .update(body)
+    .digest('hex')
+  return expectedSignature === params.razorpay_signature
+}
 
 /**
  * Get the plan limits for a given tier.

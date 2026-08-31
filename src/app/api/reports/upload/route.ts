@@ -7,7 +7,7 @@ import { uploadLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { logger } from '@/lib/logger'
 import { getUserReportCount, getUserSubscription } from '@/lib/data/subscriptions'
-import { getPlanLimits } from '@/lib/stripe'
+import { getPlanLimits } from '@/lib/razorpay'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
 

@@ -1,7 +1,7 @@
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import type { PlanTier } from '@/lib/stripe'
-import { getPlanLimits } from '@/lib/stripe'
+import type { PlanTier } from '@/lib/razorpay'
+import { getPlanLimits } from '@/lib/razorpay'
 
 /**
  * Get the current user's subscription tier.
@@ -77,8 +77,8 @@ export async function getUserFamilyCount(userId: string): Promise<number> {
  */
 export async function upsertSubscription(params: {
   userId: string
-  stripeCustomerId: string
-  stripeSubscriptionId: string
+  razorpayOrderId: string
+  razorpayPaymentId: string
   plan: string
   status: string
   currentPeriodStart?: string
@@ -90,8 +90,8 @@ export async function upsertSubscription(params: {
     .upsert(
       {
         user_id: params.userId,
-        stripe_customer_id: params.stripeCustomerId,
-        stripe_subscription_id: params.stripeSubscriptionId,
+        razorpay_order_id: params.razorpayOrderId,
+        razorpay_payment_id: params.razorpayPaymentId,
         plan: params.plan,
         status: params.status,
         current_period_start: params.currentPeriodStart || null,
@@ -131,7 +131,7 @@ export async function getSubscriptionDetails(userId: string) {
       tier: 'free' as PlanTier,
       status: 'active',
       currentPeriodEnd: null,
-      stripeSubscriptionId: null,
+      razorpayPaymentId: null,
     }
   }
 
@@ -141,6 +141,6 @@ export async function getSubscriptionDetails(userId: string) {
       : 'free') as PlanTier,
     status: data.status,
     currentPeriodEnd: data.current_period_end,
-    stripeSubscriptionId: data.stripe_subscription_id,
+    razorpayPaymentId: data.razorpay_payment_id,
   }
 }

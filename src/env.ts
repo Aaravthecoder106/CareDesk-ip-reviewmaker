@@ -12,6 +12,11 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
     GEMINI_API_KEY: z.string().min(1).default('placeholder'),
+    RAZORPAY_KEY_ID: z.string().min(1).default('placeholder'),
+    RAZORPAY_KEY_SECRET: z.string().min(1).default('placeholder'),
+    RAZORPAY_WEBHOOK_SECRET: z.string().min(1).default('placeholder'),
+    RAZORPAY_PLAN_MONTHLY_ID: z.string().min(1).default('placeholder'),
+    RAZORPAY_PLAN_ANNUAL_ID: z.string().min(1).default('placeholder'),
   },
 
   /*
@@ -36,6 +41,11 @@ export const env = createEnv({
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SIGNING_SECRET: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+    RAZORPAY_PLAN_MONTHLY_ID: process.env.RAZORPAY_PLAN_MONTHLY_ID,
+    RAZORPAY_PLAN_ANNUAL_ID: process.env.RAZORPAY_PLAN_ANNUAL_ID,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
