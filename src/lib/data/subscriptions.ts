@@ -3,6 +3,15 @@ import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import type { PlanTier } from '@/lib/razorpay'
 import { getPlanLimits } from '@/lib/razorpay'
 
+/** All valid plan tier strings stored in the DB */
+const VALID_TIERS: PlanTier[] = [
+  'free',
+  'pro_individual_monthly',
+  'pro_individual_annual',
+  'family_monthly',
+  'family_annual',
+]
+
 /**
  * Get the current user's subscription tier.
  * Falls back to 'free' if no subscription record exists.
@@ -17,12 +26,12 @@ export async function getUserSubscription(userId: string): Promise<PlanTier> {
 
   if (!data) return 'free'
   if (data.status !== 'active') return 'free'
-  if (data.plan === 'pro_monthly' || data.plan === 'pro_annual') return data.plan as PlanTier
+  if (VALID_TIERS.includes(data.plan as PlanTier)) return data.plan as PlanTier
   return 'free'
 }
 
 /**
- * Check if the user has an active Pro subscription.
+ * Check if the user has any active paid subscription.
  */
 export async function isProUser(userId: string): Promise<boolean> {
   const tier = await getUserSubscription(userId)
@@ -30,32 +39,50 @@ export async function isProUser(userId: string): Promise<boolean> {
 }
 
 /**
- * Get the user's upload limit (reports count).
+ * Get the user's monthly report limit.
+ * For 'free' tier, this is the lifetime cap (2).
  */
 export async function getUserReportLimit(userId: string): Promise<number> {
   const tier = await getUserSubscription(userId)
   const limits = getPlanLimits(tier)
-  return limits.maxReports === Infinity ? Infinity : limits.maxReports
+  return limits.maxReportsPerMonth === Infinity ? Infinity : limits.maxReportsPerMonth
 }
 
 /**
- * Get the user's family member limit.
+ * Get the user's family/profile limit.
  */
 export async function getUserFamilyLimit(userId: string): Promise<number> {
   const tier = await getUserSubscription(userId)
   const limits = getPlanLimits(tier)
-  return limits.maxFamilyMembers
+  return limits.maxProfiles
 }
 
 /**
- * Count the user's current reports.
+ * Count the user's reports uploaded in the current billing month.
+ * For free tier, counts ALL reports (lifetime cap).
  */
 export async function getUserReportCount(userId: string): Promise<number> {
+  const tier = await getUserSubscription(userId)
+  const limits = getPlanLimits(tier)
   const supabase = await createClerkSupabaseClient()
+
+  if (limits.lifetimeCap) {
+    // Free tier: count all reports ever
+    const { count } = await supabase
+      .from('reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('patient_id', userId)
+    return count || 0
+  }
+
+  // Paid tier: count reports from current month
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const { count } = await supabase
     .from('reports')
     .select('id', { count: 'exact', head: true })
     .eq('patient_id', userId)
+    .gte('created_at', monthStart)
   return count || 0
 }
 
@@ -73,7 +100,7 @@ export async function getUserFamilyCount(userId: string): Promise<number> {
 }
 
 /**
- * Upsert a subscription record (used by webhooks).
+ * Upsert a subscription record (used by webhooks and payment verification).
  */
 export async function upsertSubscription(params: {
   userId: string
@@ -104,7 +131,7 @@ export async function upsertSubscription(params: {
 }
 
 /**
- * Cancel a subscription (set status to 'canceled').
+ * Cancel a subscription (set status to 'canceled', plan to 'free').
  */
 export async function cancelSubscription(userId: string) {
   const supabase = createAdminSupabaseClient()
@@ -135,10 +162,10 @@ export async function getSubscriptionDetails(userId: string) {
     }
   }
 
+  const isActive = data.status === 'active' && VALID_TIERS.includes(data.plan as PlanTier) && data.plan !== 'free'
+
   return {
-    tier: (data.status === 'active' && (data.plan === 'pro_monthly' || data.plan === 'pro_annual')
-      ? data.plan
-      : 'free') as PlanTier,
+    tier: (isActive ? data.plan : 'free') as PlanTier,
     status: data.status,
     currentPeriodEnd: data.current_period_end,
     razorpayPaymentId: data.razorpay_payment_id,

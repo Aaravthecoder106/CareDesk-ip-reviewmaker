@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { getRazorpay } from '@/lib/razorpay'
+import { getRazorpay, PLANS, type PlanTier } from '@/lib/razorpay'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+
+/** All payable plan tiers (excludes 'free') */
+const PAYABLE_PLANS: PlanTier[] = [
+  'pro_individual_monthly',
+  'pro_individual_annual',
+  'family_monthly',
+  'family_annual',
+]
 
 /**
  * POST /api/razorpay/order
- * Creates a Razorpay order for one-time subscription payment.
- * Body: { plan: 'pro_monthly' | 'pro_annual' }
+ * Creates a Razorpay order for subscription payment.
+ * Body: { plan: PlanTier }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -16,8 +24,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { plan } = await req.json()
-    if (plan !== 'pro_monthly' && plan !== 'pro_annual') {
+    if (!PAYABLE_PLANS.includes(plan)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+    }
+
+    const planConfig = PLANS[plan as keyof typeof PLANS]
+    if (!planConfig || !('planId' in planConfig)) {
+      return NextResponse.json({ error: 'Invalid plan configuration' }, { status: 400 })
     }
 
     // Get user email for receipt
@@ -30,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     // Create Razorpay order
     const razorpay = getRazorpay()
-    const amount = plan === 'pro_monthly' ? 49900 : 47880 // Amount in paise (₹499 or ₹4788)
+    const amount = planConfig.priceInPaise // Already in paise
 
     const order = await razorpay.orders.create({
       amount,

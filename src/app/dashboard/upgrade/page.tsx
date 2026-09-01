@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { useLanguage } from '@/lib/i18n/language-context'
-import { Check, Star, Sparkles, Zap, Shield, Loader2 } from 'lucide-react'
+import { Check, Star, Sparkles, Zap, Shield, Users, Loader2, FileText } from 'lucide-react'
 
 interface SubscriptionStatus {
   tier: string
-  limits: { maxReports: number; maxFamilyMembers: number }
+  plan: { name: string; priceGlobal: string; priceIndia: string; features: string[] }
+  limits: { maxReportsPerMonth: number; lifetimeCap: boolean; maxProfiles: number }
   usage: { reports: number; familyMembers: number }
 }
 
@@ -17,8 +17,61 @@ declare global {
   }
 }
 
+const PLANS = {
+  free: {
+    name: 'Free Explorer',
+    tagline: 'Get started with basic health insights',
+    monthlyGlobal: '$0',
+    monthlyIndia: '₹0',
+    annualGlobal: '$0',
+    annualIndia: '₹0',
+    maxReports: '2 Lifetime Reports',
+    maxProfiles: '1 Profile',
+    features: [
+      'Basic lab summary',
+      'Standard AI health chat (5 msgs/day)',
+      '7-day chat history',
+    ],
+  },
+  pro_individual: {
+    name: 'Pro Individual',
+    tagline: 'For serious personal health tracking',
+    monthlyGlobal: '$4.99/mo',
+    monthlyIndia: '₹299/mo',
+    annualGlobal: '$49/yr',
+    annualIndia: '₹2,499/yr',
+    annualMonthlyGlobal: '$4.08/mo',
+    annualMonthlyIndia: '₹208/mo',
+    maxReports: '10 Reports / Month',
+    maxProfiles: '1 Profile',
+    features: [
+      'Full biomarker trend graphs',
+      'Unlimited RAG AI health chat',
+      'PDF export for doctor visits',
+      'Medication conflict checker',
+    ],
+  },
+  family: {
+    name: 'Family Care',
+    tagline: 'Complete care for your whole family',
+    monthlyGlobal: '$9.99/mo',
+    monthlyIndia: '₹699/mo',
+    annualGlobal: '$89/yr',
+    annualIndia: '₹5,499/yr',
+    annualMonthlyGlobal: '$7.42/mo',
+    annualMonthlyIndia: '₹458/mo',
+    maxReports: 'Unlimited Reports',
+    maxProfiles: 'Up to 5 Profiles',
+    features: [
+      'All Pro Individual features',
+      'Multi-profile timeline (Parents, Kids)',
+      'Emergency Health Summary card',
+      'Priority AI processing speed',
+    ],
+  },
+}
+
 export default function UpgradePage() {
-  useLanguage()
   const [annual, setAnnual] = useState(true)
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
@@ -30,10 +83,18 @@ export default function UpgradePage() {
       .catch(() => {})
   }, [])
 
-  async function handleCheckout(plan: 'pro_monthly' | 'pro_annual') {
+  function getCurrentTier(): string {
+    if (!status) return 'free'
+    if (status.tier.startsWith('family_')) return 'family'
+    if (status.tier.startsWith('pro_')) return 'pro_individual'
+    return 'free'
+  }
+
+  const currentTier = getCurrentTier()
+
+  async function handleCheckout(plan: string) {
     setLoading(true)
     try {
-      // Create order on server
       const orderRes = await fetch('/api/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,16 +107,14 @@ export default function UpgradePage() {
         return
       }
 
-      // Open Razorpay checkout
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'CareDesk',
-        description: plan === 'pro_monthly' ? 'CareDesk Pro — Monthly' : 'CareDesk Pro — Annual',
+        description: `CareDesk ${plan.includes('family') ? 'Family Care' : 'Pro Individual'} — ${plan.includes('annual') ? 'Annual' : 'Monthly'}`,
         order_id: orderData.orderId,
         handler: async function (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
-          // Verify payment on server
           const verifyRes = await fetch('/api/razorpay/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -73,18 +132,9 @@ export default function UpgradePage() {
             alert('Payment verification failed. Please contact support.')
           }
         },
-        prefill: {
-          name: '',
-          email: '',
-        },
-        theme: {
-          color: '#0059bb',
-        },
-        modal: {
-          ondismiss: function () {
-            setLoading(false)
-          },
-        },
+        prefill: { name: '', email: '' },
+        theme: { color: '#0059bb' },
+        modal: { ondismiss: () => setLoading(false) },
       }
 
       const rzp = new window.Razorpay(options)
@@ -95,23 +145,6 @@ export default function UpgradePage() {
     }
     setLoading(false)
   }
-
-  const isPro = status?.tier === 'pro_monthly' || status?.tier === 'pro_annual'
-
-  const freeFeatures = [
-    'Up to 2 report uploads',
-    'Basic AI summary & explanations',
-    '1 user profile',
-    'Standard response speed',
-  ]
-
-  const proFeatures = [
-    'Unlimited report uploads',
-    'Advanced AI trend & biomarker tracking',
-    'Up to 4 family member profiles',
-    'Export summary PDFs for doctors',
-    'Priority AI processing speed',
-  ]
 
   return (
     <div className="p-4 sm:p-5 md:p-8">
@@ -155,111 +188,173 @@ export default function UpgradePage() {
           >
             Annual
             <span className="absolute -top-3 -right-4 bg-electric-blue text-deep-navy text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-              Save 20%
+              Save 20%+
             </span>
           </button>
         </div>
       </div>
 
-      {/* Pricing Cards */}
-      <div className="grid gap-5 sm:gap-6 md:grid-cols-2 max-w-4xl mx-auto">
-        {/* Free Tier */}
-        <div className="glass-panel organic-radius p-8 flex flex-col">
-          <div className="mb-6">
-            <h3 className="text-[20px] font-semibold text-deep-navy mb-1">Free</h3>
-            <p className="text-[14px] text-on-surface-variant">Perfect for trying out CareDesk</p>
+      {/* 3-Tier Pricing Cards */}
+      <div className="grid gap-5 sm:gap-6 md:grid-cols-3 max-w-5xl mx-auto">
+        {/* Free Explorer */}
+        <div className="glass-panel organic-radius p-6 sm:p-7 flex flex-col">
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-1">
+              <FileText className="size-5 text-on-surface-variant" />
+              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{PLANS.free.name}</h3>
+            </div>
+            <p className="text-[13px] text-on-surface-variant">{PLANS.free.tagline}</p>
           </div>
-          <div className="mb-6">
-            <span className="text-[40px] font-bold text-deep-navy">₹0</span>
-            <span className="text-[16px] text-on-surface-variant ml-1">forever</span>
+          <div className="mb-4">
+            <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹0</span>
+            <span className="text-[14px] text-on-surface-variant ml-1">forever</span>
           </div>
-          <ul className="space-y-3 mb-8 flex-grow">
-            {freeFeatures.map((feature) => (
-              <li key={feature} className="flex items-start gap-3 text-[14px] text-on-surface">
-                <Check className="size-4 text-secondary mt-0.5 shrink-0" />
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">{PLANS.free.maxReports}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">{PLANS.free.maxProfiles}</span>
+          </div>
+          <ul className="space-y-2.5 mb-6 flex-grow">
+            {PLANS.free.features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-[13px] text-on-surface">
+                <Check className="size-4 text-on-surface-variant mt-0.5 shrink-0" />
                 {feature}
               </li>
             ))}
           </ul>
-          {isPro ? (
+          {currentTier === 'free' ? (
             <Button variant="outline" className="w-full border-outline-variant/50" disabled>
-              Downgrade
+              Current Plan
             </Button>
           ) : (
             <Button variant="outline" className="w-full border-outline-variant/50" disabled>
-              Current Plan
+              Downgrade
             </Button>
           )}
         </div>
 
-        {/* Pro Tier */}
-        <div className="glass-panel-strong organic-radius p-8 flex flex-col relative overflow-hidden border-2 border-secondary/30">
+        {/* Pro Individual */}
+        <div className="glass-panel organic-radius p-6 sm:p-7 flex flex-col">
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="size-5 text-electric-blue" />
+              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{PLANS.pro_individual.name}</h3>
+            </div>
+            <p className="text-[13px] text-on-surface-variant">{PLANS.pro_individual.tagline}</p>
+          </div>
+          <div className="mb-4">
+            {annual ? (
+              <>
+                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹208</span>
+                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
+                <p className="text-[12px] text-secondary font-medium mt-1">₹2,499 billed yearly</p>
+              </>
+            ) : (
+              <>
+                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹299</span>
+                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
+                <p className="text-[12px] text-on-surface-variant mt-1">Billed monthly</p>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-electric-blue/10 text-electric-blue">{PLANS.pro_individual.maxReports}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-electric-blue/10 text-electric-blue">{PLANS.pro_individual.maxProfiles}</span>
+          </div>
+          <ul className="space-y-2.5 mb-6 flex-grow">
+            {PLANS.pro_individual.features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-[13px] text-on-surface">
+                <Check className="size-4 text-electric-blue mt-0.5 shrink-0" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          {currentTier === 'pro_individual' ? (
+            <Button variant="outline" className="w-full border-outline-variant/50" disabled>
+              Active Subscription
+            </Button>
+          ) : currentTier === 'family' ? (
+            <Button variant="outline" className="w-full border-outline-variant/50" disabled>
+              Included in Family Care
+            </Button>
+          ) : (
+            <Button
+              onClick={() => handleCheckout(annual ? 'pro_individual_annual' : 'pro_individual_monthly')}
+              disabled={loading}
+              className="w-full btn-primary-gradient"
+            >
+              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Zap className="mr-2 size-4" />}
+              Upgrade to Pro
+            </Button>
+          )}
+        </div>
+
+        {/* Family Care */}
+        <div className="glass-panel-strong organic-radius p-6 sm:p-7 flex flex-col relative overflow-hidden border-2 border-secondary/30">
           {/* Recommended Badge */}
           <div className="absolute top-0 right-0 bg-secondary text-white text-[11px] font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1">
             <Star className="size-3 fill-white" />
             RECOMMENDED
           </div>
 
-          <div className="mb-6">
-            <h3 className="text-[20px] font-semibold text-deep-navy mb-1 flex items-center gap-2">
-              CareDesk Pro
-              <Zap className="size-5 text-electric-blue" />
-            </h3>
-            <p className="text-[14px] text-on-surface-variant">For serious health tracking</p>
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="size-5 text-secondary" />
+              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{PLANS.family.name}</h3>
+            </div>
+            <p className="text-[13px] text-on-surface-variant">{PLANS.family.tagline}</p>
           </div>
-
-          <div className="mb-6">
+          <div className="mb-4">
             {annual ? (
               <>
-                <span className="text-[40px] font-bold text-deep-navy">₹399</span>
-                <span className="text-[16px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[13px] text-secondary font-medium mt-1">₹4,788 billed yearly — Save 20%</p>
+                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹458</span>
+                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
+                <p className="text-[12px] text-secondary font-medium mt-1">₹5,499 billed yearly — Save 26%</p>
               </>
             ) : (
               <>
-                <span className="text-[40px] font-bold text-deep-navy">₹499</span>
-                <span className="text-[16px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[13px] text-on-surface-variant mt-1">Billed monthly</p>
+                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹699</span>
+                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
+                <p className="text-[12px] text-on-surface-variant mt-1">Billed monthly</p>
               </>
             )}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-secondary/10 text-secondary">{PLANS.family.maxReports}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-secondary/10 text-secondary">{PLANS.family.maxProfiles}</span>
           </div>
 
           {/* Family Value Anchor */}
           <div className="mb-4 glass-panel rounded-xl p-3 flex items-center gap-3 border border-electric-blue/10">
-            <div className="w-10 h-10 rounded-full bg-electric-blue/10 flex items-center justify-center shrink-0">
-              <Shield className="size-5 text-electric-blue" />
+            <div className="w-9 h-9 rounded-full bg-electric-blue/10 flex items-center justify-center shrink-0">
+              <Shield className="size-4 text-electric-blue" />
             </div>
             <div>
-              <p className="text-[13px] font-semibold text-deep-navy">Covers your whole family</p>
-              <p className="text-[12px] text-on-surface-variant">Up to 4 family member profiles included</p>
+              <p className="text-[12px] font-semibold text-deep-navy">Covers your whole family</p>
+              <p className="text-[11px] text-on-surface-variant">5 profiles included — parents, kids, everyone</p>
             </div>
           </div>
 
-          <ul className="space-y-3 mb-8 flex-grow">
-            {proFeatures.map((feature) => (
-              <li key={feature} className="flex items-start gap-3 text-[14px] text-on-surface">
+          <ul className="space-y-2.5 mb-6 flex-grow">
+            {PLANS.family.features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-[13px] text-on-surface">
                 <Check className="size-4 text-secondary mt-0.5 shrink-0" />
                 {feature}
               </li>
             ))}
           </ul>
 
-          {isPro ? (
+          {currentTier === 'family' ? (
             <Button variant="outline" className="w-full border-outline-variant/50" disabled>
               Active Subscription
             </Button>
           ) : (
             <Button
-              onClick={() => handleCheckout(annual ? 'pro_annual' : 'pro_monthly')}
+              onClick={() => handleCheckout(annual ? 'family_annual' : 'family_monthly')}
               disabled={loading}
               className="w-full btn-primary-gradient"
             >
-              {loading ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 size-4" />
-              )}
-              Upgrade to Pro
+              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
+              Upgrade to Family Care
             </Button>
           )}
         </div>
@@ -267,7 +362,7 @@ export default function UpgradePage() {
 
       {/* Current Usage */}
       {status && (
-        <div className="mt-8 max-w-4xl mx-auto">
+        <div className="mt-8 max-w-5xl mx-auto">
           <div className="glass-panel rounded-xl p-5">
             <h3 className="text-[16px] font-semibold text-deep-navy mb-3">Your Current Usage</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -276,14 +371,15 @@ export default function UpgradePage() {
                 <div className="flex items-baseline gap-1">
                   <span className="text-[24px] font-bold text-deep-navy">{status.usage.reports}</span>
                   <span className="text-[14px] text-on-surface-variant">
-                    / {status.limits.maxReports === -1 ? '∞' : status.limits.maxReports}
+                    / {status.limits.maxReportsPerMonth === -1 ? '∞' : status.limits.maxReportsPerMonth}
+                    {status.limits.lifetimeCap ? ' (lifetime)' : '/mo'}
                   </span>
                 </div>
-                {status.limits.maxReports !== -1 && (
+                {status.limits.maxReportsPerMonth !== -1 && (
                   <div className="mt-2 h-1.5 bg-surface-container rounded-full overflow-hidden">
                     <div
                       className="h-full bg-secondary rounded-full transition-all"
-                      style={{ width: `${Math.min((status.usage.reports / status.limits.maxReports) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((status.usage.reports / status.limits.maxReportsPerMonth) * 100, 100)}%` }}
                     />
                   </div>
                 )}
@@ -293,14 +389,14 @@ export default function UpgradePage() {
                 <div className="flex items-baseline gap-1">
                   <span className="text-[24px] font-bold text-deep-navy">{status.usage.familyMembers}</span>
                   <span className="text-[14px] text-on-surface-variant">
-                    / {status.limits.maxFamilyMembers || '∞'}
+                    / {status.limits.maxProfiles || '∞'}
                   </span>
                 </div>
-                {status.limits.maxFamilyMembers > 0 && (
+                {status.limits.maxProfiles > 0 && (
                   <div className="mt-2 h-1.5 bg-surface-container rounded-full overflow-hidden">
                     <div
                       className="h-full bg-secondary rounded-full transition-all"
-                      style={{ width: `${Math.min((status.usage.familyMembers / status.limits.maxFamilyMembers) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((status.usage.familyMembers / status.limits.maxProfiles) * 100, 100)}%` }}
                     />
                   </div>
                 )}
@@ -315,10 +411,11 @@ export default function UpgradePage() {
         <h2 className="text-[20px] font-semibold text-deep-navy text-center mb-6">Frequently Asked Questions</h2>
         <div className="space-y-4">
           {[
-            { q: 'Is payment secure?', a: 'Payments are processed through Razorpay, India\'s most trusted payment gateway. Your card details are never stored on our servers.' },
-            { q: 'What happens when I reach the 2-report limit?', a: 'You can still view existing reports, but you\'ll need to upgrade to Pro to upload more. Your existing data is always safe.' },
-            { q: 'Can I share Pro with my family?', a: 'Pro includes up to 4 family member profiles. Each member gets their own dashboard and health insights.' },
-            { q: 'How do I get a refund?', a: 'Contact us within 7 days of payment for a full refund. We\'re confident you\'ll love CareDesk Pro.' },
+            { q: 'Is payment secure?', a: "Payments are processed through Razorpay, India's most trusted payment gateway. Your card details are never stored on our servers." },
+            { q: 'What happens when I reach the 2-report limit on Free?', a: "You can still view existing reports, but you'll need to upgrade to upload more. Your existing data is always safe." },
+            { q: 'Can I share Family Care with my family?', a: 'Family Care includes up to 5 member profiles. Each member gets their own dashboard and health insights. Multi-profile timeline lets you track everyone.' },
+            { q: "What's the difference between Pro Individual and Family Care?", a: 'Pro Individual is for solo health tracking with 10 reports/month and 1 profile. Family Care adds unlimited reports, 5 profiles, emergency summaries, and priority AI processing.' },
+            { q: 'How do I get a refund?', a: "Contact us within 7 days of payment for a full refund. We're confident you'll love CareDesk." },
           ].map((faq) => (
             <div key={faq.q} className="glass-panel rounded-xl p-5">
               <h4 className="text-[15px] font-semibold text-deep-navy mb-2">{faq.q}</h4>

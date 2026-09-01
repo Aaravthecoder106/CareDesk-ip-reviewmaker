@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { verifyRazorpaySignature } from '@/lib/razorpay'
+import { verifyRazorpaySignature, type PlanTier } from '@/lib/razorpay'
 import { upsertSubscription } from '@/lib/data/subscriptions'
 import { logger } from '@/lib/logger'
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     // Activate subscription
     const now = new Date()
     const periodEnd = new Date(now)
-    if (plan === 'pro_monthly') {
+    if (plan.includes('monthly')) {
       periodEnd.setMonth(periodEnd.getMonth() + 1)
     } else {
       periodEnd.setFullYear(periodEnd.getFullYear() + 1)

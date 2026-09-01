@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserSubscription, getUserReportCount, getUserFamilyCount, getSubscriptionDetails } from '@/lib/data/subscriptions'
-import { getPlanLimits, PLANS } from '@/lib/razorpay'
+import { getPlanLimits, PLANS, type PlanTier } from '@/lib/razorpay'
 
 /**
  * GET /api/subscription/status
@@ -23,12 +23,20 @@ export async function GET() {
 
     const limits = getPlanLimits(tier)
 
+    const plan = PLANS[tier as keyof typeof PLANS] || PLANS.free
+
     return NextResponse.json({
       tier,
-      plan: PLANS[tier],
+      plan: {
+        name: plan.name,
+        priceGlobal: plan.priceGlobal,
+        priceIndia: plan.priceIndia,
+        features: plan.features,
+      },
       limits: {
-        maxReports: limits.maxReports === Infinity ? -1 : limits.maxReports,
-        maxFamilyMembers: limits.maxFamilyMembers,
+        maxReportsPerMonth: limits.maxReportsPerMonth === Infinity ? -1 : limits.maxReportsPerMonth,
+        lifetimeCap: limits.lifetimeCap,
+        maxProfiles: limits.maxProfiles,
       },
       usage: {
         reports: reportCount,

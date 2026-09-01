@@ -30,9 +30,10 @@ export async function POST(req: NextRequest) {
       getUserReportCount(userId),
     ])
     const limits = getPlanLimits(tier)
-    if (limits.maxReports !== Infinity && reportCount >= limits.maxReports) {
+    if (limits.maxReportsPerMonth !== Infinity && reportCount >= limits.maxReportsPerMonth) {
+      const tierLabel = limits.isFamily ? 'Family Care' : limits.isPro ? 'Pro' : 'Free'
       return apiError(
-        `You've reached the ${limits.maxReports}-report limit on the Free plan. Upgrade to Pro for unlimited uploads.`,
+        `You've reached the ${limits.maxReportsPerMonth}-report limit on the ${tierLabel} plan. Upgrade for more uploads.`,
         403
       )
     }

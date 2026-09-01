@@ -45,11 +45,11 @@ export async function POST(req: NextRequest) {
         if (!payment?.notes?.clerk_user_id) break
 
         const userId = payment.notes.clerk_user_id
-        const plan = payment.notes.plan || 'pro_monthly'
+        const plan = payment.notes.plan || 'pro_individual_monthly'
 
         const now = new Date()
         const periodEnd = new Date(now)
-        if (plan === 'pro_monthly') {
+        if (plan.includes('monthly')) {
           periodEnd.setMonth(periodEnd.getMonth() + 1)
         } else {
           periodEnd.setFullYear(periodEnd.getFullYear() + 1)

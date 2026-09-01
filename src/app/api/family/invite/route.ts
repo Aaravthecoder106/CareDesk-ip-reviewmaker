@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
       getUserFamilyCount(userId),
     ])
     const limits = getPlanLimits(tier)
-    if (limits.maxFamilyMembers > 0 && familyCount >= limits.maxFamilyMembers) {
+    if (limits.maxProfiles > 0 && familyCount >= limits.maxProfiles) {
       return apiError(
-        `You've reached the ${limits.maxFamilyMembers}-member limit on the Free plan. Upgrade to Pro for up to 4 family members.`,
+        `You've reached the ${limits.maxProfiles}-member limit on the Free plan. Upgrade to Family Care for up to 5 family members.`,
         403
       )
     }
