@@ -114,17 +114,17 @@ export default function UpgradePage() {
   ]
 
   return (
-    <div className="p-5 md:p-8">
+    <div className="p-4 sm:p-5 md:p-8">
       {/* Razorpay Script */}
       <script src="https://checkout.razorpay.com/v1/checkout.js" async />
 
       {/* Header */}
-      <div className="mb-8 text-center max-w-2xl mx-auto">
+      <div className="mb-6 sm:mb-8 text-center max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border-electric-blue/30 mb-4">
           <Sparkles className="size-4 text-electric-blue" />
           <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-deep-navy">Upgrade Your Health Journey</span>
         </div>
-        <h1 className="text-[28px] leading-[36px] md:text-[32px] md:leading-[40px] font-semibold text-deep-navy mb-3">
+        <h1 className="text-[22px] sm:text-[28px] leading-[30px] sm:leading-[36px] md:text-[32px] md:leading-[40px] font-semibold text-deep-navy mb-2 sm:mb-3">
           Choose the right plan for your family
         </h1>
         <p className="text-[16px] text-on-surface-variant">
@@ -162,7 +162,7 @@ export default function UpgradePage() {
       </div>
 
       {/* Pricing Cards */}
-      <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
+      <div className="grid gap-5 sm:gap-6 md:grid-cols-2 max-w-4xl mx-auto">
         {/* Free Tier */}
         <div className="glass-panel organic-radius p-8 flex flex-col">
           <div className="mb-6">
@@ -311,7 +311,7 @@ export default function UpgradePage() {
       )}
 
       {/* FAQ */}
-      <div className="mt-12 max-w-2xl mx-auto">
+      <div className="mt-8 sm:mt-12 max-w-2xl mx-auto">
         <h2 className="text-[20px] font-semibold text-deep-navy text-center mb-6">Frequently Asked Questions</h2>
         <div className="space-y-4">
           {[

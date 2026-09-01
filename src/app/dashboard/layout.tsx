@@ -12,8 +12,10 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <MobileNav />
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-surface-container-low/30">
-          {children}
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-surface-container-low/30 overscroll-none">
+          <div className="pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {children}
+          </div>
         </main>
       </div>
       <FeedbackWidget />

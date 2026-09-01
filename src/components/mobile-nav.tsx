@@ -32,7 +32,7 @@ export function MobileNav() {
   return (
     <>
       {/* Top bar for mobile */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/40 glass-panel-strong lg:hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/40 glass-panel-strong lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <Link href="/" className="font-bold text-lg text-deep-navy tracking-tight">
           CareDesk
         </Link>
@@ -70,7 +70,7 @@ export function MobileNav() {
                   href={item.href}
                   onClick={() => setIsOpen(false)}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'flex items-center gap-2.5 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 active:bg-surface-container',
                     isActive
                       ? 'bg-primary/10 text-primary border border-primary/10'
                       : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'

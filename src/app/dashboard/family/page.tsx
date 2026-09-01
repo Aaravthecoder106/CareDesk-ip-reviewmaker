@@ -182,11 +182,11 @@ export default function FamilyPage() {
   const unread = notifications.filter(n => !n.read_at)
 
   return (
-    <div className="p-5 md:p-8">
+    <div className="p-4 sm:p-5 md:p-8">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[24px] leading-[32px] font-semibold text-on-surface">{t('family.title')}</h1>
+          <h1 className="text-[22px] sm:text-[24px] leading-[30px] sm:leading-[32px] font-semibold text-on-surface">{t('family.title')}</h1>
           <p className="mt-1 text-[14px] text-on-surface-variant">
             {t('family.subtitle')}
           </p>
@@ -206,7 +206,7 @@ export default function FamilyPage() {
 
       {/* Invite Form */}
       {showInvite && (
-        <div className="mb-6 glass-panel organic-radius p-5">
+        <div className="mb-5 sm:mb-6 glass-panel organic-radius p-4 sm:p-5">
           <h3 className="text-[16px] font-semibold text-deep-navy mb-3">{t('family.inviteCard.title')}</h3>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -272,11 +272,11 @@ export default function FamilyPage() {
           )}
 
           {/* Accept Invite Code */}
-          <div className="mb-6 glass-panel organic-radius p-5">
+          <div className="mb-5 sm:mb-6 glass-panel organic-radius p-4 sm:p-5">
             <h3 className="flex items-center gap-2 text-[16px] font-semibold text-deep-navy mb-3">
               <Ticket className="size-4 text-secondary" /> {t('family.acceptCode.title')}
             </h3>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-2.5 sm:gap-3 sm:flex-row">
               <input
                 value={acceptCode}
                 onChange={(e) => setAcceptCode(e.target.value)}

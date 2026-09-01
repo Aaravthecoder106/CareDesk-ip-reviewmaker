@@ -156,9 +156,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-5 md:p-8">
+    <div className="flex h-full min-h-0 flex-col p-4 sm:p-5 md:p-8">
       {/* Header */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-3 sm:mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-[24px] leading-[32px] font-semibold text-on-surface">{t('chat.title')}</h1>
           <p className="mt-1 text-[14px] text-on-surface-variant">
@@ -197,7 +197,7 @@ export default function ChatPage() {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-[14px] sm:max-w-[80%] ${
+                  className={`max-w-[90%] sm:max-w-[80%] rounded-2xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-[13px] sm:text-[14px] ${
                     msg.role === 'user'
                       ? 'bg-primary text-white'
                       : 'glass-panel text-on-surface'
@@ -216,7 +216,7 @@ export default function ChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-outline-variant/30 p-3 sm:p-4">
+        <div className="border-t border-outline-variant/30 p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {image && (
             <div className="mb-2 flex items-center gap-2">
               <div className="relative">
@@ -267,7 +267,7 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t('chat.input.placeholder')}
-              className="flex-1 rounded-xl bg-white/50 border border-outline-variant/50 px-4 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all"
+              className="flex-1 rounded-xl bg-white/50 border border-outline-variant/50 px-3 sm:px-4 py-2.5 text-[13px] sm:text-[14px] outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all min-w-0"
               disabled={loading}
             />
             <Button type="submit" size="icon" disabled={loading || (!input.trim() && !image)} className="btn-primary-gradient rounded-xl">

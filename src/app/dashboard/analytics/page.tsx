@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
   ]
 
   return (
-    <div className="p-5 md:p-8">
+    <div className="p-4 sm:p-5 md:p-8">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -175,23 +175,22 @@ export default function AnalyticsPage() {
       ) : (
         <>
           {/* Stat Cards */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
+          <div className="mb-5 sm:mb-6 grid grid-cols-2 gap-3 sm:gap-4">
             {statCards.map((card) => (
-              <div key={card.label} className="glass-panel organic-radius p-5">
+              <div key={card.label} className="glass-panel organic-radius p-4 sm:p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[12px] font-bold tracking-wide uppercase text-on-surface-variant">{card.label}</span>
                   <div className={`w-8 h-8 rounded-full ${card.bg} flex items-center justify-center`}>
                     <card.icon className={`size-4 ${card.color}`} />
                   </div>
                 </div>
-                <div className="text-[24px] font-bold text-deep-navy">{card.value}</div>
+                <div className="text-[20px] sm:text-[24px] font-bold text-deep-navy">{card.value}</div>
               </div>
             ))}
           </div>
 
           {/* AI Insights */}
-          {data.insights && data.insights.length > 0 && (
-            <div className="mb-6 glass-panel rounded-xl p-5 border border-electric-blue/10 ai-glow">
+          {data.insights && data.insights.length > 0 && (              <div className="mb-5 sm:mb-6 glass-panel rounded-xl p-4 sm:p-5 border border-electric-blue/10 ai-glow">
               <div className="flex items-center gap-2 mb-3">
                 <span className="material-symbols-outlined text-secondary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
                 <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-secondary">{t('analytics.aiInsights')}</span>
@@ -208,11 +207,11 @@ export default function AnalyticsPage() {
           )}
 
           {/* Charts */}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             {labChartData.length > 0 && (
-              <div className="glass-panel organic-radius p-5">
-                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.labTrends')}</h3>
-                <ResponsiveContainer width="100%" height={250}>
+              <div className="glass-panel organic-radius p-4 sm:p-5">
+                <h3 className="text-[15px] sm:text-[16px] font-semibold text-deep-navy mb-3 sm:mb-4">{t('analytics.labTrends')}</h3>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={labChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#c4c6d0" />
                     <XAxis dataKey="name" fontSize={12} tick={{ fill: '#43474f' }} />
@@ -225,9 +224,9 @@ export default function AnalyticsPage() {
             )}
 
             {conditionData.length > 0 && (
-              <div className="glass-panel organic-radius p-5">
-                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.conditions')}</h3>
-                <ResponsiveContainer width="100%" height={250}>
+              <div className="glass-panel organic-radius p-4 sm:p-5">
+                <h3 className="text-[15px] sm:text-[16px] font-semibold text-deep-navy mb-3 sm:mb-4">{t('analytics.conditions')}</h3>
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
                       data={conditionData}
@@ -248,9 +247,9 @@ export default function AnalyticsPage() {
             )}
 
             {reportData.length > 0 && (
-              <div className="glass-panel organic-radius p-5">
-                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.reportStatus')}</h3>
-                <ResponsiveContainer width="100%" height={250}>
+              <div className="glass-panel organic-radius p-4 sm:p-5">
+                <h3 className="text-[15px] sm:text-[16px] font-semibold text-deep-navy mb-3 sm:mb-4">{t('analytics.reportStatus')}</h3>
+                <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={reportData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#c4c6d0" />
                     <XAxis dataKey="name" fontSize={12} tick={{ fill: '#43474f' }} />
@@ -263,9 +262,9 @@ export default function AnalyticsPage() {
             )}
 
             {labChartData.length > 1 && (
-              <div className="glass-panel organic-radius p-5">
-                <h3 className="text-[16px] font-semibold text-deep-navy mb-4">{t('analytics.labTimeline')}</h3>
-                <ResponsiveContainer width="100%" height={250}>
+              <div className="glass-panel organic-radius p-4 sm:p-5">
+                <h3 className="text-[15px] sm:text-[16px] font-semibold text-deep-navy mb-3 sm:mb-4">{t('analytics.labTimeline')}</h3>
+                <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={labChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#c4c6d0" />
                     <XAxis dataKey="date" fontSize={12} tick={{ fill: '#43474f' }} />

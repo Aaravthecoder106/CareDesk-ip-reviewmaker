@@ -192,17 +192,34 @@
   animation: ai-glow 3s ease-in-out infinite;
 }
 
+/* Hide scrollbar on mobile for cleaner look */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
   }
   html {
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
   }
   body {
     @apply bg-background text-foreground;
     font-family: 'Public Sans', system-ui, sans-serif;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Prevent text selection on interactive elements for mobile feel */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
   }
 }
