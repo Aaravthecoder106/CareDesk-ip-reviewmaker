@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { getRazorpay, PLANS } from '@/lib/razorpay'
+import { getRazorpay } from '@/lib/razorpay'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 
 /**
@@ -19,8 +19,6 @@ export async function POST(req: NextRequest) {
     if (plan !== 'pro_monthly' && plan !== 'pro_annual') {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
-
-    const planConfig = plan === 'pro_monthly' ? PLANS.pro_monthly : PLANS.pro_annual
 
     // Get user email for receipt
     const supabase = createAdminSupabaseClient()

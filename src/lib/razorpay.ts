@@ -82,6 +82,7 @@ export function verifyRazorpaySignature(params: {
   razorpay_payment_id: string
   razorpay_signature: string
 }): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require('crypto') as typeof import('crypto')
   const body = `${params.razorpay_order_id}|${params.razorpay_payment_id}`
   const expectedSignature = crypto

@@ -18,7 +18,7 @@ declare global {
 }
 
 export default function UpgradePage() {
-  const { t } = useLanguage()
+  useLanguage()
   const [annual, setAnnual] = useState(true)
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
