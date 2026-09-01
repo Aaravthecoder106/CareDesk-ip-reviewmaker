@@ -130,14 +130,16 @@ export async function sendFamilyInviteEmail(params: {
     appUrl,
   })
 
-  const formResult = await sendViaFormSubmit(to, subject, inviterName, token, appUrl)
-  if (formResult.ok) return formResult
-
+  // Try Resend first (most reliable)
   const resendResult = await sendViaResend(to, subject, html, text)
   if (resendResult.ok) return resendResult
 
+  // Fallback to FormSubmit
+  const formResult = await sendViaFormSubmit(to, subject, inviterName, token, appUrl)
+  if (formResult.ok) return formResult
+
   return {
     ok: false,
-    error: formResult.error || resendResult.error || 'Could not send invite email',
+    error: 'Email service not configured. Share the invite code manually.',
   }
 }

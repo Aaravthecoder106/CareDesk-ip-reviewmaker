@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@/components/clerk-shim'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Bell, Copy, Ticket } from 'lucide-react'
+import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Bell, Copy, Ticket, MessageCircle, Share2 } from 'lucide-react'
 
 interface FamilyMember {
   id: string
@@ -49,6 +49,8 @@ export default function FamilyPage() {
   const [acceptCode, setAcceptCode] = useState('')
   const [accepting, setAccepting] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [lastInviteCode, setLastInviteCode] = useState<string | null>(null)
+  const [lastInviteEmail, setLastInviteEmail] = useState<string | null>(null)
 
   const fetchData = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true)
@@ -93,6 +95,9 @@ export default function FamilyPage() {
         if (data.emailSent) {
           setMessage(t('family.messages.sent', { email: sentTo }))
         } else {
+          // Email failed — show the code prominently so user can share manually
+          setLastInviteCode(data.token || null)
+          setLastInviteEmail(sentTo)
           setMessage(t('family.messages.emailFailed', { email: sentTo }))
         }
         fetchData(false)
@@ -158,14 +163,24 @@ export default function FamilyPage() {
     }
   }
 
-  async function handleCopyToken(inv: Invite) {
+  async function handleCopyToken(token: string, id?: string) {
     try {
-      await navigator.clipboard.writeText(inv.token)
-      setCopiedId(inv.id)
+      await navigator.clipboard.writeText(token)
+      setCopiedId(id || 'last')
       setTimeout(() => setCopiedId(null), 2000)
     } catch {
       console.error('Copy failed')
     }
+  }
+
+  function handleShareWhatsApp(token: string, email: string) {
+    const text = `Hi! You've been invited to join my CareDesk family.\n\nYour invite code: ${token}\n\n1. Sign up at ${window.location.origin}/sign-up\n2. Open Family page: ${window.location.origin}/dashboard/family\n3. Paste the code and tap Accept Invite`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  function handleShareSMS(token: string) {
+    const text = `CareDesk invite code: ${token} — Sign up, open Family page, and paste to accept.`
+    window.open(`sms:?body=${encodeURIComponent(text)}`, '_blank')
   }
 
   async function handleMarkRead(id: string) {
@@ -201,6 +216,32 @@ export default function FamilyPage() {
       {message && (
         <div className="mb-4 glass-panel rounded-xl p-4 border border-secondary/20">
           <p className="text-[14px] text-on-surface">{message}</p>
+        </div>
+      )}
+
+      {/* Last Invite Code (shown when email fails) */}
+      {lastInviteCode && (
+        <div className="mb-5 sm:mb-6 glass-panel organic-radius p-4 sm:p-5 border-2 border-electric-blue/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Ticket className="size-4 text-electric-blue" />
+            <h3 className="text-[15px] font-semibold text-deep-navy">Invite Code for {lastInviteEmail}</h3>
+          </div>
+          <p className="text-[13px] text-on-surface-variant mb-3">Email couldn't be sent. Share this code directly:</p>
+          <div className="bg-surface-container rounded-lg p-3 mb-3 flex items-center justify-between">
+            <code className="text-[15px] font-mono font-semibold text-deep-navy break-all mr-3">{lastInviteCode}</code>
+            <Button variant="outline" size="sm" onClick={() => handleCopyToken(lastInviteCode)} className="shrink-0 border-outline-variant/50">
+              <Copy className="mr-1 size-3" />
+              {copiedId === 'last' ? 'Copied!' : 'Copy'}
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => handleShareWhatsApp(lastInviteCode, lastInviteEmail || '')} className="border-green-500/30 text-green-700 hover:bg-green-50">
+              <MessageCircle className="mr-1 size-3" /> WhatsApp
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleShareSMS(lastInviteCode)} className="border-blue-500/30 text-blue-700 hover:bg-blue-50">
+              <Share2 className="mr-1 size-3" /> SMS
+            </Button>
+          </div>
         </div>
       )}
 
@@ -384,15 +425,24 @@ export default function FamilyPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-[14px] font-medium text-deep-navy">{inv.email}</p>
+                          <p className="text-[11px] font-mono text-on-surface-variant mt-0.5">Code: {inv.token}</p>
                           <p className="text-[12px] text-on-surface-variant">
                             {inv.relation ? `${inv.relation} · ` : ''}{t('family.invites.invited', { date: new Date(inv.created_at).toLocaleDateString() })}
                           </p>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => handleCopyToken(inv)} className="w-full sm:w-auto border-outline-variant/50 hover:bg-surface-container">
-                        <Copy className="mr-1 size-3" />
-                        {copiedId === inv.id ? t('family.invites.copied') : t('family.invites.copyCode')}
-                      </Button>
+                      <div className="flex flex-wrap gap-1.5 self-end sm:self-auto">
+                        <Button variant="outline" size="sm" onClick={() => handleCopyToken(inv.token, inv.id)} className="border-outline-variant/50 hover:bg-surface-container">
+                          <Copy className="mr-1 size-3" />
+                          {copiedId === inv.id ? t('family.invites.copied') : t('family.invites.copyCode')}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleShareWhatsApp(inv.token, inv.email)} className="border-green-500/30 text-green-700 hover:bg-green-50">
+                          <MessageCircle className="mr-1 size-3" /> WhatsApp
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleShareSMS(inv.token)} className="border-blue-500/30 text-blue-700 hover:bg-blue-50">
+                          <Share2 className="mr-1 size-3" /> SMS
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
