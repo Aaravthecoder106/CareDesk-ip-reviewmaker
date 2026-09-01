@@ -173,7 +173,7 @@ export default function FamilyPage() {
     }
   }
 
-  function handleShareWhatsApp(token: string, email: string) {
+  function handleShareWhatsApp(token: string) {
     const text = `Hi! You've been invited to join my CareDesk family.\n\nYour invite code: ${token}\n\n1. Sign up at ${window.location.origin}/sign-up\n2. Open Family page: ${window.location.origin}/dashboard/family\n3. Paste the code and tap Accept Invite`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
@@ -226,7 +226,7 @@ export default function FamilyPage() {
             <Ticket className="size-4 text-electric-blue" />
             <h3 className="text-[15px] font-semibold text-deep-navy">Invite Code for {lastInviteEmail}</h3>
           </div>
-          <p className="text-[13px] text-on-surface-variant mb-3">Email couldn't be sent. Share this code directly:</p>
+          <p className="text-[13px] text-on-surface-variant mb-3">Email couldn&apos;t be sent. Share this code directly:</p>
           <div className="bg-surface-container rounded-lg p-3 mb-3 flex items-center justify-between">
             <code className="text-[15px] font-mono font-semibold text-deep-navy break-all mr-3">{lastInviteCode}</code>
             <Button variant="outline" size="sm" onClick={() => handleCopyToken(lastInviteCode)} className="shrink-0 border-outline-variant/50">
@@ -235,7 +235,7 @@ export default function FamilyPage() {
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleShareWhatsApp(lastInviteCode, lastInviteEmail || '')} className="border-green-500/30 text-green-700 hover:bg-green-50">
+            <Button variant="outline" size="sm" onClick={() => handleShareWhatsApp(lastInviteCode)} className="border-green-500/30 text-green-700 hover:bg-green-50">
               <MessageCircle className="mr-1 size-3" /> WhatsApp
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleShareSMS(lastInviteCode)} className="border-blue-500/30 text-blue-700 hover:bg-blue-50">
@@ -436,7 +436,7 @@ export default function FamilyPage() {
                           <Copy className="mr-1 size-3" />
                           {copiedId === inv.id ? t('family.invites.copied') : t('family.invites.copyCode')}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleShareWhatsApp(inv.token, inv.email)} className="border-green-500/30 text-green-700 hover:bg-green-50">
+                        <Button variant="outline" size="sm" onClick={() => handleShareWhatsApp(inv.token)} className="border-green-500/30 text-green-700 hover:bg-green-50">
                           <MessageCircle className="mr-1 size-3" /> WhatsApp
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleShareSMS(inv.token)} className="border-blue-500/30 text-blue-700 hover:bg-blue-50">

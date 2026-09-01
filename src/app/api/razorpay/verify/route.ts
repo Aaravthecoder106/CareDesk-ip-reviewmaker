@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { verifyRazorpaySignature, type PlanTier } from '@/lib/razorpay'
+import { verifyRazorpaySignature } from '@/lib/razorpay'
 import { upsertSubscription } from '@/lib/data/subscriptions'
 import { logger } from '@/lib/logger'
 
