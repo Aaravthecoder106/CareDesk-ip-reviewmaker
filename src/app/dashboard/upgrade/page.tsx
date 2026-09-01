@@ -243,17 +243,21 @@ export default function UpgradePage() {
           </div>
           <div className="mb-4">
             {annual ? (
-              <>
-                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹208</span>
-                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[12px] text-secondary font-medium mt-1">₹2,499 billed yearly</p>
-              </>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹208</span>
+                  <span className="text-[14px] text-on-surface-variant">/month</span>
+                </div>
+                <p className="text-[18px] sm:text-[20px] font-semibold text-secondary mt-1">₹2,499 <span className="text-[13px] font-medium text-on-surface-variant">billed yearly</span></p>
+              </div>
             ) : (
-              <>
-                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹299</span>
-                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[12px] text-on-surface-variant mt-1">Billed monthly</p>
-              </>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹299</span>
+                  <span className="text-[14px] text-on-surface-variant">/month</span>
+                </div>
+                <p className="text-[13px] text-on-surface-variant mt-1">Billed monthly</p>
+              </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -305,17 +309,21 @@ export default function UpgradePage() {
           </div>
           <div className="mb-4">
             {annual ? (
-              <>
-                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹458</span>
-                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[12px] text-secondary font-medium mt-1">₹5,499 billed yearly — Save 26%</p>
-              </>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹458</span>
+                  <span className="text-[14px] text-on-surface-variant">/month</span>
+                </div>
+                <p className="text-[18px] sm:text-[20px] font-semibold text-secondary mt-1">₹5,499 <span className="text-[13px] font-medium text-on-surface-variant">billed yearly — Save 26%</span></p>
+              </div>
             ) : (
-              <>
-                <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹699</span>
-                <span className="text-[14px] text-on-surface-variant ml-1">/month</span>
-                <p className="text-[12px] text-on-surface-variant mt-1">Billed monthly</p>
-              </>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹699</span>
+                  <span className="text-[14px] text-on-surface-variant">/month</span>
+                </div>
+                <p className="text-[13px] text-on-surface-variant mt-1">Billed monthly</p>
+              </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
