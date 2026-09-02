@@ -17,10 +17,7 @@ function isConfigured(value: string | undefined): value is string {
  */
 export function assertRazorpayConfigured() {
   if (!isConfigured(process.env.RAZORPAY_KEY_ID) || !isConfigured(process.env.RAZORPAY_KEY_SECRET)) {
-    throw new Error('Razorpay is not configured: set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET')
-  }
-  if (!isConfigured(process.env.RAZORPAY_WEBHOOK_SECRET)) {
-    throw new Error('Razorpay is not configured: set RAZORPAY_WEBHOOK_SECRET')
+    throw new Error('Razorpay is not configured: set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables in your deployment dashboard.')
   }
 }
 

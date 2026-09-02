@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Script from 'next/script'
+import { useUser } from '@/components/clerk-shim'
 import { Button } from '@/components/ui/button'
-import { Check, Star, Sparkles, Zap, Shield, Users, Loader2, FileText } from 'lucide-react'
+import { Check, Star, Sparkles, Zap, Shield, Users, Loader2, FileText, CheckCircle2 } from 'lucide-react'
 
 interface SubscriptionStatus {
   tier: string
@@ -15,6 +17,31 @@ declare global {
   interface Window {
     Razorpay: new (options: Record<string, unknown>) => { open: () => void }
   }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve(false)
+      return
+    }
+    if (window.Razorpay) {
+      resolve(true)
+      return
+    }
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true))
+      existing.addEventListener('error', () => resolve(false))
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.async = true
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
 }
 
 const PLANS = {
@@ -72,15 +99,24 @@ const PLANS = {
 }
 
 export default function UpgradePage() {
+  const { user } = useUser()
   const [annual, setAnnual] = useState(true)
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
+  const [isSuccess, setIsSuccess] = useState(false)
 
   useEffect(() => {
     fetch('/api/subscription/status')
       .then(r => r.json())
       .then(setStatus)
       .catch(() => {})
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('success') === 'true') {
+        setIsSuccess(true)
+      }
+    }
   }, [])
 
   function getCurrentTier(): string {
@@ -95,6 +131,15 @@ export default function UpgradePage() {
   async function handleCheckout(plan: string) {
     setLoading(true)
     try {
+      // 1. Ensure Razorpay SDK is loaded
+      const isLoaded = await loadRazorpayScript()
+      if (!isLoaded || typeof window === 'undefined' || !window.Razorpay) {
+        alert('Unable to load payment gateway. Please check your internet connection and try again.')
+        setLoading(false)
+        return
+      }
+
+      // 2. Create Order on server
       const orderRes = await fetch('/api/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,39 +147,53 @@ export default function UpgradePage() {
       })
       const orderData = await orderRes.json()
       if (!orderData.orderId) {
-        alert(orderData.error || 'Failed to create order')
+        alert(orderData.error || 'Failed to create payment order. Please check Razorpay configuration.')
         setLoading(false)
         return
       }
 
+      const userName = user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : ''
+      const userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
-        currency: orderData.currency,
+        currency: orderData.currency || 'INR',
         name: 'CareDesk',
         description: `CareDesk ${plan.includes('family') ? 'Family Care' : 'Pro Individual'} — ${plan.includes('annual') ? 'Annual' : 'Monthly'}`,
         order_id: orderData.orderId,
         handler: async function (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
-          const verifyRes = await fetch('/api/razorpay/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              plan,
-            }),
-          })
-          const verifyData = await verifyRes.json()
-          if (verifyData.ok) {
-            window.location.href = '/dashboard/upgrade?success=true'
-          } else {
-            alert('Payment verification failed. Please contact support.')
+          try {
+            const verifyRes = await fetch('/api/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                plan,
+              }),
+            })
+            const verifyData = await verifyRes.json()
+            if (verifyData.ok) {
+              window.location.href = '/dashboard/upgrade?success=true'
+            } else {
+              alert('Payment verification failed. If your account was charged, please contact support.')
+              setLoading(false)
+            }
+          } catch {
+            alert('Verification network error. Please contact support if your payment was deducted.')
+            setLoading(false)
           }
         },
-        prefill: { name: '', email: '' },
+        prefill: {
+          name: userName,
+          email: userEmail,
+        },
         theme: { color: '#0059bb' },
-        modal: { ondismiss: () => setLoading(false) },
+        modal: {
+          ondismiss: () => setLoading(false),
+        },
       }
 
       const rzp = new window.Razorpay(options)
@@ -142,14 +201,26 @@ export default function UpgradePage() {
     } catch (err) {
       alert('Payment failed to initialize. Please try again.')
       console.error('Checkout error:', err)
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
     <div className="p-4 sm:p-5 md:p-8">
       {/* Razorpay Script */}
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async />
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
+
+      {/* Success Notification */}
+      {isSuccess && (
+        <div className="mb-6 max-w-2xl mx-auto glass-panel rounded-xl p-4 border border-green-500/30 bg-green-500/10 flex items-center gap-3">
+          <CheckCircle2 className="size-5 text-green-600 shrink-0" />
+          <div className="flex-1">
+            <h4 className="text-[14px] font-semibold text-deep-navy">Subscription Activated!</h4>
+            <p className="text-[12px] text-on-surface-variant">Your account has been upgraded successfully. All features are now unlocked.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setIsSuccess(false)}>Dismiss</Button>
+        </div>
+      )}
 
       {/* Header */}
       <div className="mb-6 sm:mb-8 text-center max-w-2xl mx-auto">

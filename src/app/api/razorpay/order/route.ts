@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { getRazorpay, assertRazorpayConfigured, PLANS, type PlanTier } from '@/lib/razorpay'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
@@ -38,12 +38,23 @@ export async function POST(req: NextRequest) {
     const planConfig = PLANS[plan as keyof typeof PLANS]
 
     // Get user email for receipt
-    const supabase = createAdminSupabaseClient()
-    const { data: user } = await supabase
-      .from('users')
-      .select('email')
-      .eq('id', userId)
-      .single()
+    let userEmail = ''
+    try {
+      const user = await currentUser()
+      userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+    } catch {
+      // Fallback to Supabase if Clerk fails
+    }
+
+    if (!userEmail) {
+      const supabase = createAdminSupabaseClient()
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', userId)
+        .maybeSingle()
+      userEmail = dbUser?.email || ''
+    }
 
     // Create Razorpay order
     const razorpay = getRazorpay()
@@ -56,13 +67,12 @@ export async function POST(req: NextRequest) {
       notes: {
         clerk_user_id: userId,
         plan,
-        email: user?.email || '',
+        email: userEmail,
       },
     })
 
     // Persist what was purchased BEFORE returning the order to the client.
-    // If this fails the client gets a 500 — an order we can't account for
-    // must never reach checkout.
+    const supabase = createAdminSupabaseClient()
     const { error: insertError } = await supabase
       .from('razorpay_orders')
       .insert({
@@ -74,7 +84,10 @@ export async function POST(req: NextRequest) {
       })
     if (insertError) {
       logger.error({ route: '/api/razorpay/order', userId, orderId: order.id, err: insertError.message }, 'Failed to record order')
-      return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+      if (insertError.code === '42P01') {
+        return NextResponse.json({ error: 'Subscriptions table not found. Please run migration 0004 in Supabase.' }, { status: 500 })
+      }
+      return NextResponse.json({ error: `Database error: ${insertError.message}` }, { status: 500 })
     }
 
     return NextResponse.json({

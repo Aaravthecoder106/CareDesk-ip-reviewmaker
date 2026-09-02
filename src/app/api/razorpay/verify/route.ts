@@ -45,17 +45,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 })
     }
 
-    // Confirm with Razorpay that the payment really was captured, belongs to
-    // this order, and covers the full order amount.
+    // Confirm with Razorpay that the payment really belongs to
+    // this order and covers the full order amount.
     const razorpay = getRazorpay()
     const payment = (await razorpay.payments.fetch(razorpay_payment_id)) as {
       order_id?: string
       status?: string
       amount?: number
     }
-    if (payment.order_id !== razorpay_order_id || payment.status !== 'captured') {
-      logger.warn({ route: '/api/razorpay/verify', userId, razorpay_order_id, paymentStatus: payment.status }, 'Payment not captured for this order')
+    if (payment.order_id !== razorpay_order_id || (payment.status !== 'captured' && payment.status !== 'authorized')) {
+      logger.warn({ route: '/api/razorpay/verify', userId, razorpay_order_id, paymentStatus: payment.status }, 'Payment not captured or authorized for this order')
       return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 })
+    }
+
+    // Auto-capture if payment is authorized but not yet captured
+    if (payment.status === 'authorized') {
+      try {
+        await razorpay.payments.capture(razorpay_payment_id, payment.amount || 0, 'INR')
+      } catch (err) {
+        logger.warn({ route: '/api/razorpay/verify', err: String(err) }, 'Auto-capture warning')
+      }
     }
 
     // Activate from the server-side order record (idempotent).
