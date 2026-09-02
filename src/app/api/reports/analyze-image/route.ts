@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import { getReportUrl } from '@/lib/data/reports'
+import { getReport, getReportUrl } from '@/lib/data/reports'
 import { generateTextWithImages } from '@/lib/ai/gemini'
 import { analysisLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
@@ -23,15 +22,9 @@ export async function POST(req: NextRequest) {
       return apiError(parsed.error.issues[0]?.message || 'Invalid input', 400)
     }
 
-    const supabase = await createClerkSupabaseClient()
-    const { data: report, error } = await supabase
-      .from('reports')
-      .select('file_path, mime_type')
-      .eq('id', parsed.data.reportId)
-      .eq('patient_id', userId)
-      .single()
+    const report = await getReport(parsed.data.reportId)
 
-    if (error || !report) return apiError('Report not found', 404)
+    if (!report) return apiError('Report not found', 404)
 
     const url = await getReportUrl(report.file_path)
     if (!url) return apiError('Could not get file URL', 500)

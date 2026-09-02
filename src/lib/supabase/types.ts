@@ -535,6 +535,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      razorpay_orders: {
+        Row: {
+          order_id: string;
+          user_id: string;
+          plan: string;
+          amount: number;
+          status: string;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          order_id: string;
+          user_id: string;
+          plan: string;
+          amount: number;
+          status?: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          order_id?: string;
+          user_id?: string;
+          plan?: string;
+          amount?: number;
+          status?: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
       deleted_users: {
         Row: {
           id: string;

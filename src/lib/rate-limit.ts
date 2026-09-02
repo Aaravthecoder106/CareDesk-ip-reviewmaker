@@ -92,3 +92,6 @@ export const uploadLimiter = rateLimit({ windowMs: 300_000, max: 10 })
 
 /** AI analysis (re-analyze): 5 per 5 min */
 export const analysisLimiter = rateLimit({ windowMs: 300_000, max: 5 })
+
+/** Library password verification: 5 attempts per 5 min (brute-force guard) */
+export const passwordVerifyLimiter = rateLimit({ windowMs: 300_000, max: 5 })

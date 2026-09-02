@@ -22,14 +22,13 @@ export async function POST(req: NextRequest) {
     const email = user?.emailAddresses?.[0]?.emailAddress || null
 
     const admin = createAdminSupabaseClient()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
     const { error } = await admin.from('feedback').insert({
       user_id: userId,
       email,
       would_use: wouldUse,
       liked: liked || null,
       missing: missing || null,
-    } as never)
+    })
 
     if (error) {
       // Handle missing table gracefully (migration not applied yet)

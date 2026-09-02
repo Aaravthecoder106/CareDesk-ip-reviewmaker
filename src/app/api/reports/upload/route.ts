@@ -6,10 +6,18 @@ import { analyzeReport } from '@/lib/ai/analyze-report'
 import { uploadLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { logger } from '@/lib/logger'
+import { logAudit, requestIp } from '@/lib/data/audit'
 import { getUserReportCount, getUserSubscription } from '@/lib/data/subscriptions'
-import { getPlanLimits } from '@/lib/plans'
+import { getPlanLimits } from '@/lib/razorpay'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
+
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+])
 
 export async function POST(req: NextRequest) {
   const start = Date.now()
@@ -56,6 +64,20 @@ export async function POST(req: NextRequest) {
         return apiError('Missing filePath or fileName', 400)
       }
 
+      // The path was minted server-side by /api/reports/presign under the
+      // caller's folder. Enforce that here: analysis downloads this path with
+      // the service-role key, so an unvalidated path would let a caller point
+      // the AI pipeline at another user's object (cross-tenant PHI read).
+      if (!filePath.startsWith(`${userId}/`) || filePath.includes('..')) {
+        logger.warn({ route: '/api/reports/upload', userId, filePath }, 'Rejected foreign filePath')
+        return apiError('Invalid file path', 400)
+      }
+
+      const effectiveMime = mimeType || 'application/pdf'
+      if (!ALLOWED_MIME_TYPES.has(effectiveMime)) {
+        return apiError('Unsupported file type. Upload a PDF or an image (PNG, JPEG, WebP).', 400)
+      }
+
       if (fileSize && fileSize > MAX_FILE_SIZE) {
         return apiError(`File too large: ${(fileSize / 1024 / 1024).toFixed(1)} MB. Maximum is 20 MB.`, 400)
       }
@@ -68,7 +90,7 @@ export async function POST(req: NextRequest) {
           patient_id: userId,
           title: fileName.replace(/\.[^.]+$/, ''),
           file_path: filePath,
-          mime_type: mimeType || 'application/pdf',
+          mime_type: effectiveMime,
           status: 'pending',
         })
         .select()
@@ -79,8 +101,10 @@ export async function POST(req: NextRequest) {
         return apiError(`Database error: ${insertError.message}`, 500)
       }
 
+      await logAudit({ actorId: userId, action: 'INSERT', table: 'reports', recordId: report.id, ip: requestIp(req) })
+
       step = 'queue-analysis'
-      const finalMimeType = mimeType || 'application/pdf'
+      const finalMimeType = effectiveMime
       after(async () => {
         const analysisStart = Date.now()
         try {
@@ -128,6 +152,10 @@ export async function POST(req: NextRequest) {
     const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const fileMimeType = file.type || (ext === 'pdf' ? 'application/pdf' : `image/${ext}`)
 
+    if (!ALLOWED_MIME_TYPES.has(fileMimeType)) {
+      return apiError('Unsupported file type. Upload a PDF or an image (PNG, JPEG, WebP).', 400)
+    }
+
     const { error: uploadError } = await supabase.storage
       .from('reports')
       .upload(filePath, file, { contentType: fileMimeType })
@@ -154,6 +182,8 @@ export async function POST(req: NextRequest) {
       logger.error({ route: '/api/reports/upload', userId, step, err: insertError.message }, 'DB insert failed')
       return apiError(`Database error: ${insertError.message}`, 500)
     }
+
+    await logAudit({ actorId: userId, action: 'INSERT', table: 'reports', recordId: report.id, ip: requestIp(req) })
 
     step = 'queue-analysis'
     after(async () => {

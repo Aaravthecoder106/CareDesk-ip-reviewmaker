@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { setLibraryPassword, verifyLibraryPassword, removeLibraryPassword, hasLibraryPassword } from '@/lib/data/library'
-import { apiLimiter } from '@/lib/rate-limit'
+import { apiLimiter, passwordVerifyLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { libraryPasswordSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(result)
       }
       case 'verify': {
+        // Stricter limit than the general API limiter: verification is the
+        // guessable operation, so cap attempts before the scrypt check.
+        const verifyLimited = applyRateLimit(req, passwordVerifyLimiter, userId)
+        if (verifyLimited) return verifyLimited
         const ok = await verifyLibraryPassword(password || '')
         const durationMs = Date.now() - start
         logger.info({ route: '/api/library/password', userId, action: 'verify', ok, durationMs }, 'Library password verified')

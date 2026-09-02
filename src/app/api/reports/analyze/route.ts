@@ -6,6 +6,7 @@ import { analysisLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { reportIdSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
+import { logAudit, requestIp } from '@/lib/data/audit'
 
 export async function POST(req: NextRequest) {
   const start = Date.now()
@@ -33,6 +34,8 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error || !report) return apiError('Report not found', 404)
+
+    await logAudit({ actorId: userId, action: 'UPDATE', table: 'reports', recordId: reportId, ip: requestIp(req) })
 
     await supabase.from('reports').update({ status: 'processing' }).eq('id', reportId)
 

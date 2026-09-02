@@ -5,6 +5,8 @@ import { chatLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { chatMessageSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
+import { getUserSubscription } from '@/lib/data/subscriptions'
+import { countChatMessagesSentToday, FREE_CHAT_DAILY_LIMIT } from '@/lib/data/chat'
 
 export async function POST(req: NextRequest) {
   const start = Date.now()
@@ -16,6 +18,18 @@ export async function POST(req: NextRequest) {
     if (rateLimited) return rateLimited
 
     if (!userId) return apiError('Unauthorized', 401)
+
+    // Free-tier daily message cap (advertised plan limit).
+    const tier = await getUserSubscription(userId)
+    if (tier === 'free') {
+      const sentToday = await countChatMessagesSentToday()
+      if (sentToday >= FREE_CHAT_DAILY_LIMIT) {
+        return apiError(
+          `You've used all ${FREE_CHAT_DAILY_LIMIT} free messages for today. Upgrade to Pro for unlimited AI chat.`,
+          403
+        )
+      }
+    }
 
     // Validate input with Zod
     const body = await req.json()

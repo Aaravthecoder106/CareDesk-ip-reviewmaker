@@ -1,6 +1,7 @@
 import 'server-only'
 import { auth } from '@clerk/nextjs/server'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/data/audit'
 import type { Tables } from '@/lib/supabase/types'
 
 export async function getReports(): Promise<Tables<'reports'>[]> {
@@ -81,6 +82,10 @@ export async function deleteReport(id: string): Promise<boolean> {
     .delete()
     .eq('id', id)
     .eq('patient_id', userId)
+
+  if (!error) {
+    await logAudit({ actorId: userId, action: 'DELETE', table: 'reports', recordId: id })
+  }
 
   return !error
 }

@@ -6,8 +6,8 @@ const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
 // Primary + fallback verified against this key's quota (gemini-2.0-flash has
 // zero free-tier quota for new keys and always 429s).
-const PRIMARY_MODEL = 'gemini-2.0-flash'
-const FALLBACK_MODEL = 'gemini-1.5-flash'
+const PRIMARY_MODEL = 'gemini-3-flash-preview'
+const FALLBACK_MODEL = 'gemini-flash-lite-latest'
 
 export function getGeminiModel(model: string = PRIMARY_MODEL) {
   return genAI.getGenerativeModel({ model })

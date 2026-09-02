@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import { getReportUrl } from '@/lib/data/reports'
+import { getReport, getReportUrl } from '@/lib/data/reports'
+import { logAudit, requestIp } from '@/lib/data/audit'
 import { apiError } from '@/lib/api-helpers'
 import { reportPreviewSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
@@ -21,18 +21,15 @@ export async function GET(req: NextRequest) {
       return apiError(parsed.error.issues[0]?.message || 'Invalid input', 400)
     }
 
-    const supabase = await createClerkSupabaseClient()
-    const { data: report } = await supabase
-      .from('reports')
-      .select('file_path')
-      .eq('id', parsed.data.id)
-      .eq('patient_id', userId)
-      .single()
+    const report = await getReport(parsed.data.id)
 
     if (!report) return apiError('Report not found', 404)
 
     const url = await getReportUrl(report.file_path)
     if (!url) return apiError('Could not generate URL', 500)
+
+    // PHI access trail: who generated a view URL for which report.
+    await logAudit({ actorId: userId, action: 'SELECT', table: 'reports', recordId: parsed.data.id, ip: requestIp(req) })
 
     const durationMs = Date.now() - start
     logger.debug({ route: '/api/reports/preview', reportId: parsed.data.id, durationMs }, 'Preview URL generated')
