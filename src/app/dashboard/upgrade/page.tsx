@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Check, Star, Sparkles, Zap, Shield, Users, Loader2, FileText } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import { createClient } from '@supabase/supabase-js'
+import { env } from '@/env'
 
 interface SubscriptionStatus {
   tier: string
@@ -11,11 +14,13 @@ interface SubscriptionStatus {
   usage: { reports: number; familyMembers: number }
 }
 
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => { open: () => void }
-  }
-}
+// Client-side Supabase client - only initialize if env vars are available
+const supabaseClient = typeof window !== 'undefined' && env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ? createClient(
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    )
+  : null
 
 const PLANS = {
   free: {
@@ -75,6 +80,10 @@ export default function UpgradePage() {
   const [annual, setAnnual] = useState(true)
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
+  const [transactionId, setTransactionId] = useState('')
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetch('/api/subscription/status')
@@ -92,64 +101,91 @@ export default function UpgradePage() {
 
   const currentTier = getCurrentTier()
 
-  async function handleCheckout(plan: string) {
+  async function handleManualPaymentSubmit(plan: string) {
+    if (!transactionId.trim()) {
+      toast({
+        title: 'Transaction ID Required',
+        description: 'Please enter the UPI transaction reference ID',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      const orderRes = await fetch('/api/razorpay/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      })
-      const orderData = await orderRes.json()
-      if (!orderData.orderId) {
-        alert(orderData.error || 'Failed to create order')
-        setLoading(false)
+      // Get user from Supabase auth
+      if (!supabaseClient) {
+        toast({
+          title: 'Configuration Error',
+          description: 'Payment system not configured. Please contact support.',
+          variant: 'destructive',
+        })
         return
       }
 
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'CareDesk',
-        description: `CareDesk ${plan.includes('family') ? 'Family Care' : 'Pro Individual'} — ${plan.includes('annual') ? 'Annual' : 'Monthly'}`,
-        order_id: orderData.orderId,
-        handler: async function (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
-          const verifyRes = await fetch('/api/razorpay/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              plan,
-            }),
-          })
-          const verifyData = await verifyRes.json()
-          if (verifyData.ok) {
-            window.location.href = '/dashboard/upgrade?success=true'
-          } else {
-            alert('Payment verification failed. Please contact support.')
-          }
-        },
-        prefill: { name: '', email: '' },
-        theme: { color: '#0059bb' },
-        modal: { ondismiss: () => setLoading(false) },
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+      if (userError || !user) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please sign in to submit payment',
+          variant: 'destructive',
+        })
+        return
       }
 
-      const rzp = new window.Razorpay(options)
-      rzp.open()
+      const { error } = await supabaseClient.from('manual_payments').insert({
+        user_id: user.id,
+        plan: plan,
+        transaction_id: transactionId.trim(),
+        amount: plan.includes('family') 
+          ? (annual ? 5499 : 699)
+          : (annual ? 2499 : 299),
+        currency: 'INR',
+        status: 'pending_verification',
+      })
+
+      if (error) throw error
+
+      toast({
+        title: 'Payment Submitted Successfully',
+        description: 'Your transaction ID has been recorded. We will verify and activate your subscription within 24-48 hours.',
+      })
+
+      setTransactionId('')
+      setShowPaymentModal(false)
+      setSelectedPlan(null)
+      
+      // Refresh subscription status after a delay
+      setTimeout(() => {
+        fetch('/api/subscription/status')
+          .then(r => r.json())
+          .then(setStatus)
+          .catch(() => {})
+      }, 3000)
+
     } catch (err) {
-      alert('Payment failed to initialize. Please try again.')
-      console.error('Checkout error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit transaction ID. Please try again.'
+      console.error('Manual payment submission error:', err)
+      toast({
+        title: 'Submission Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
+
+  function openPaymentModal(plan: string) {
+    setSelectedPlan(plan)
+    setShowPaymentModal(true)
+  }
+
+  // PayPal/Buy Me A Coffee link for international users
+  const INTERNATIONAL_PAYMENT_LINK = 'https://www.buymeacoffee.com/caredesk'
 
   return (
     <div className="p-4 sm:p-5 md:p-8">
-      {/* Razorpay Script */}
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async />
 
       {/* Header */}
       <div className="mb-6 sm:mb-8 text-center max-w-2xl mx-auto">
@@ -282,7 +318,7 @@ export default function UpgradePage() {
             </Button>
           ) : (
             <Button
-              onClick={() => handleCheckout(annual ? 'pro_individual_annual' : 'pro_individual_monthly')}
+              onClick={() => openPaymentModal(annual ? 'pro_individual_annual' : 'pro_individual_monthly')}
               disabled={loading}
               className="w-full btn-primary-gradient"
             >
@@ -357,7 +393,7 @@ export default function UpgradePage() {
             </Button>
           ) : (
             <Button
-              onClick={() => handleCheckout(annual ? 'family_annual' : 'family_monthly')}
+              onClick={() => openPaymentModal(annual ? 'family_annual' : 'family_monthly')}
               disabled={loading}
               className="w-full btn-primary-gradient"
             >
@@ -414,16 +450,116 @@ export default function UpgradePage() {
         </div>
       )}
 
+      {/* Payment Modal */}
+      {showPaymentModal && selectedPlan && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel-strong organic-radius p-6 sm:p-8 max-w-md w-full relative">
+            <button
+              onClick={() => setShowPaymentModal(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+            >
+              ✕
+            </button>
+            
+            <h3 className="text-xl font-semibold text-deep-navy mb-2">Complete Your Payment</h3>
+            <p className="text-sm text-on-surface-variant mb-6">
+              {selectedPlan.includes('family') ? 'Family Care' : 'Pro Individual'} — {selectedPlan.includes('annual') ? 'Annual' : 'Monthly'}
+            </p>
+
+            {/* UPI QR Code Section */}
+            <div className="mb-6">
+              <div className="bg-white rounded-xl p-4 mb-4 flex justify-center">
+                {/* Replace with your actual QR code image path */}
+                <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <FileText className="size-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs text-gray-500">Add your UPI QR code image here</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Path: /public/qr-code.png</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-electric-blue/5 rounded-lg p-3 mb-4">
+                <p className="text-xs text-electric-blue font-medium">
+                  Scan the QR code above with any UPI app (GPay, PhonePe, Paytm, etc.) to pay 
+                  {selectedPlan.includes('family') 
+                    ? (annual ? ' ₹5,499' : ' ₹699') 
+                    : (annual ? ' ₹2,499' : ' ₹299')}
+                </p>
+              </div>
+            </div>
+
+            {/* Transaction ID Input */}
+            <div className="mb-6">
+              <label htmlFor="transactionId" className="block text-sm font-medium text-deep-navy mb-2">
+                Transaction Reference ID (UTR)
+              </label>
+              <input
+                id="transactionId"
+                type="text"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                placeholder="e.g., 123456789012"
+                className="w-full px-4 py-2.5 rounded-lg border border-outline-variant/50 bg-surface text-deep-navy placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-electric-blue/50 focus:border-transparent"
+                maxLength={20}
+              />
+              <p className="text-xs text-on-surface-variant mt-1.5">
+                Find this in your UPI app payment confirmation
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={() => handleManualPaymentSubmit(selectedPlan)}
+              disabled={loading || !transactionId.trim()}
+              className="w-full btn-primary-gradient mb-3"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 size-4" />
+                  Submit Payment for Verification
+                </>
+              )}
+            </Button>
+
+            {/* International Users Button */}
+            <a
+              href={INTERNATIONAL_PAYMENT_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full"
+            >
+              <Button
+                variant="outline"
+                className="w-full border-outline-variant/50"
+              >
+                🌍 International Users: Pay Here
+              </Button>
+            </a>
+
+            <p className="text-xs text-on-surface-variant text-center mt-4">
+              We will verify and activate your subscription within 24-48 hours
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* FAQ */}
       <div className="mt-8 sm:mt-12 max-w-2xl mx-auto">
         <h2 className="text-[20px] font-semibold text-deep-navy text-center mb-6">Frequently Asked Questions</h2>
         <div className="space-y-4">
           {[
-            { q: 'Is payment secure?', a: "Payments are processed through Razorpay, India's most trusted payment gateway. Your card details are never stored on our servers." },
+            { q: 'Is payment secure?', a: "Payments are processed through UPI, India's most trusted payment system. Your transaction ID is securely stored for verification." },
             { q: 'What happens when I reach the 2-report limit on Free?', a: "You can still view existing reports, but you'll need to upgrade to upload more. Your existing data is always safe." },
             { q: 'Can I share Family Care with my family?', a: 'Family Care includes up to 5 member profiles. Each member gets their own dashboard and health insights. Multi-profile timeline lets you track everyone.' },
             { q: "What's the difference between Pro Individual and Family Care?", a: 'Pro Individual is for solo health tracking with 10 reports/month and 1 profile. Family Care adds unlimited reports, 5 profiles, emergency summaries, and priority AI processing.' },
             { q: 'How do I get a refund?', a: "Contact us within 7 days of payment for a full refund. We're confident you'll love CareDesk." },
+            { q: 'How long does verification take?', a: 'We manually verify UPI payments within 24-48 hours. You\'ll receive a notification once your subscription is activated.' },
           ].map((faq) => (
             <div key={faq.q} className="glass-panel rounded-xl p-5">
               <h4 className="text-[15px] font-semibold text-deep-navy mb-2">{faq.q}</h4>

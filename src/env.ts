@@ -12,11 +12,12 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
     GEMINI_API_KEY: z.string().min(1),
-    RAZORPAY_KEY_ID: z.string().min(1),
-    RAZORPAY_KEY_SECRET: z.string().min(1),
-    RAZORPAY_WEBHOOK_SECRET: z.string().min(1),
-    RAZORPAY_PLAN_MONTHLY_ID: z.string().min(1),
-    RAZORPAY_PLAN_ANNUAL_ID: z.string().min(1),
+    // Razorpay variables made optional for manual payment flow
+    RAZORPAY_KEY_ID: z.string().optional(),
+    RAZORPAY_KEY_SECRET: z.string().optional(),
+    RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+    RAZORPAY_PLAN_MONTHLY_ID: z.string().optional(),
+    RAZORPAY_PLAN_ANNUAL_ID: z.string().optional(),
   },
 
   /*
