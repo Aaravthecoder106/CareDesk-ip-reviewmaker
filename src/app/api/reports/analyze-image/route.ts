@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const { data: report, error } = await supabase
       .from('reports')
       .select('file_path, mime_type')
-      .eq('id', reportId as string)
+      .eq('id', parsed.data.reportId)
       .eq('patient_id', userId)
       .single()
 

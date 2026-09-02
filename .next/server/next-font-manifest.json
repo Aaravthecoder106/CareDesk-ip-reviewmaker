@@ -1,0 +1,46 @@
+{
+  "app": {
+    "[project]/src/app/_not-found/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/about/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/analytics/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/chat/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/family/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/reports/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/settings/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/dashboard/upgrade/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/privacy/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/sign-in/[[...sign-in]]/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ],
+    "[project]/src/app/sign-up/[[...sign-up]]/page": [
+      "static/media/fa0520225c6f3d07-s.p.d28ba1c8.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}
