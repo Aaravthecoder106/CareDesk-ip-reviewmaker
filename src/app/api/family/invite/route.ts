@@ -6,8 +6,7 @@ import { apiLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
 import { familyInviteSchema } from '@/lib/validations'
 import { logger } from '@/lib/logger'
-import { getUserSubscription, getUserFamilyCount } from '@/lib/data/subscriptions'
-import { getPlanLimits } from '@/lib/razorpay'
+import { getUserSubscription, getUserFamilyCount, getUserFamilyLimit } from '@/lib/data/subscriptions'
 
 export async function POST(req: NextRequest) {
   const start = Date.now()
@@ -19,14 +18,14 @@ export async function POST(req: NextRequest) {
     if (rateLimited) return rateLimited
 
     // Check family member limit
-    const [tier, familyCount] = await Promise.all([
+    const [, familyCount] = await Promise.all([
       getUserSubscription(userId),
       getUserFamilyCount(userId),
     ])
-    const limits = getPlanLimits(tier)
-    if (limits.maxProfiles > 0 && familyCount >= limits.maxProfiles) {
+    const maxProfiles = await getUserFamilyLimit(userId)
+    if (maxProfiles > 0 && familyCount >= maxProfiles) {
       return apiError(
-        `You've reached the ${limits.maxProfiles}-member limit on the Free plan. Upgrade to Family Care for up to 5 family members.`,
+        `You've reached the ${maxProfiles}-member limit on the Free plan. Upgrade to Family Care for up to 5 family members.`,
         403
       )
     }

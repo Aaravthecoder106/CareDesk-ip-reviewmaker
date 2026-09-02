@@ -83,7 +83,7 @@ export function PaymentForm({ userId, planType, onSuccess }: PaymentProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
-            Our team will verify your payment within 24 hours. You'll receive a confirmation email once verified.
+            Our team will verify your payment within 24 hours. You&apos;ll receive a confirmation email once verified.
           </p>
           <Button className="w-full" onClick={onSuccess}>
             Continue to Dashboard

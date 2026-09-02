@@ -24,14 +24,14 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClerkSupabaseClient()
-    const { data: report } = await supabase
+    const { data: report, error } = await supabase
       .from('reports')
       .select('file_path, mime_type')
-      .eq('id', parsed.data.reportId)
+      .eq('id', reportId as string)
       .eq('patient_id', userId)
       .single()
 
-    if (!report) return apiError('Report not found', 404)
+    if (error || !report) return apiError('Report not found', 404)
 
     const url = await getReportUrl(report.file_path)
     if (!url) return apiError('Could not get file URL', 500)
