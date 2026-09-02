@@ -11,12 +11,12 @@ export const env = createEnv({
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
-    GEMINI_API_KEY: z.string().min(1).default('placeholder'),
-    RAZORPAY_KEY_ID: z.string().min(1).default('placeholder'),
-    RAZORPAY_KEY_SECRET: z.string().min(1).default('placeholder'),
-    RAZORPAY_WEBHOOK_SECRET: z.string().min(1).default('placeholder'),
-    RAZORPAY_PLAN_MONTHLY_ID: z.string().min(1).default('placeholder'),
-    RAZORPAY_PLAN_ANNUAL_ID: z.string().min(1).default('placeholder'),
+    GEMINI_API_KEY: z.string().min(1),
+    RAZORPAY_KEY_ID: z.string().min(1),
+    RAZORPAY_KEY_SECRET: z.string().min(1),
+    RAZORPAY_WEBHOOK_SECRET: z.string().min(1),
+    RAZORPAY_PLAN_MONTHLY_ID: z.string().min(1),
+    RAZORPAY_PLAN_ANNUAL_ID: z.string().min(1),
   },
 
   /*
