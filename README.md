@@ -26,35 +26,40 @@ AI-powered healthcare platform for patients and caregivers. Upload medical repor
 ## Project Structure
 
 ```
-caredesk-ip-main/
+caredesk/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── api/
-│   │   │   ├── webhooks/clerk/     # Clerk webhook (user sync)
-│   │   │   ├── reports/            # Upload, list, delete, analyze
+│   │   │   ├── webhooks/           # Clerk + Razorpay webhooks
+│   │   │   ├── reports/            # Upload, presign, list, delete, analyze
 │   │   │   ├── chat/               # AI chat + history
 │   │   │   ├── analytics/          # Data + regenerate
-│   │   │   ├── family/             # Invite, accept, confirm, members
-│   │   │   └── library/            # Password lock
+│   │   │   ├── family/            # Invite, accept, confirm, members
+│   │   │   ├── razorpay/          # Order, verify, webhook
+│   │   │   ├── subscription/      # Tier + usage status
+│   │   │   ├── library/           # Password lock
+│   │   │   └── feedback/          # User feedback
 │   │   ├── dashboard/              # Authenticated pages
 │   │   │   ├── reports/            # Report library UI
 │   │   │   ├── chat/               # AI chat UI
 │   │   │   ├── analytics/          # Charts & graphs
 │   │   │   ├── family/             # Family sharing
-│   │   │   └── settings/           # Library password settings
+│   │   │   ├── settings/           # Library password settings
+│   │   │   └── upgrade/            # Pricing & checkout
 │   │   ├── sign-in/                # Clerk sign-in
 │   │   ├── sign-up/                # Clerk sign-up
-│   │   ├── layout.tsx              # Root layout (ClerkProvider)
+│   │   ├── layout.tsx              # Root layout (providers)
 │   │   ├── page.tsx                # Landing page
 │   │   └── globals.css             # Tailwind + shadcn variables
 │   ├── components/
 │   │   ├── ui/                     # shadcn components
 │   │   ├── header.tsx              # Public header
 │   │   ├── sidebar.tsx             # Dashboard sidebar
-│   │   └── mobile-nav.tsx          # Mobile nav
+│   │   ├── mobile-nav.tsx          # Mobile nav
+│   │   └── feedback-widget.tsx     # Feedback modal
 │   ├── lib/
 │   │   ├── ai/
-│   │   │   ├── gemini.ts           # Gemini client
+│   │   │   ├── gemini.ts           # Gemini client (model fallbacks)
 │   │   │   ├── analyze-report.ts   # Report analysis pipeline
 │   │   │   └── chat.ts             # AI chat with context
 │   │   ├── data/
@@ -64,18 +69,23 @@ caredesk-ip-main/
 │   │   │   ├── family.ts           # Family members & invites
 │   │   │   ├── library.ts          # Library password
 │   │   │   ├── users.ts            # User identity
-│   │   │   └── provisioning.ts     # Clerk → Supabase sync
-│   │   └── supabase/
-│   │       ├── client.ts           # RLS-scoped client
-│   │       ├── admin.ts            # Service-role client
-│   │       └── types.ts            # DB type definitions
+│   │   │   ├── provisioning.ts     # Clerk → Supabase sync
+│   │   │   ├── subscriptions.ts    # Plan tiers + usage
+│   │   │   └── audit.ts            # Audit logging
+│   │   ├── supabase/
+│   │   │   ├── client.ts           # RLS-scoped client
+│   │   │   ├── admin.ts            # Service-role client
+│   │   │   └── types.ts            # DB type definitions
+│   │   └── ...
 │   ├── env.ts                      # Env validation
 │   └── middleware.ts               # Clerk route protection
 ├── supabase/
 │   └── migrations/
 │       ├── 0000_initial.sql        # Full schema (16 tables + storage)
 │       ├── 0001_user_provisioning.sql
-│       └── 0002_deletion_tombstone.sql
+│       ├── 0002_deletion_tombstone.sql
+│       ├── 0003_feedback.sql
+│       └── 0004_subscriptions.sql
 └── tests/
     └── provisioning.test.ts        # Unit tests
 ```
@@ -100,7 +110,7 @@ caredesk-ip-main/
 
 In the Supabase dashboard, go to **SQL Editor** (left sidebar).
 
-You need to run **3 SQL files in order**. Open each file, copy the entire contents, paste into the SQL Editor, and click **Run**.
+You need to run **5 SQL files in order**. Open each file, copy the entire contents, paste into the SQL Editor, and click **Run**. (Alternatively, apply everything in one shot with `supabase/migrations/COMBINED_ALL_MIGRATIONS.sql`.)
 
 #### Migration 1: Full Schema
 
@@ -126,6 +136,18 @@ This creates a trigger that auto-creates a `patients` row whenever a `users` row
 Copy the entire contents of `supabase/migrations/0002_deletion_tombstone.sql` and run it.
 
 This creates the `deleted_users` table that prevents late webhooks from resurrecting deleted accounts.
+
+#### Migration 4: Feedback Table
+
+Copy the entire contents of `supabase/migrations/0003_feedback.sql` and run it.
+
+This creates the `feedback` table used by the in-app feedback widget.
+
+#### Migration 5: Subscriptions
+
+Copy the entire contents of `supabase/migrations/0004_subscriptions.sql` and run it.
+
+This creates the `subscriptions` and `razorpay_orders` tables used by the upgrade/checkout flow.
 
 ### 3. Get Supabase Keys
 
@@ -157,21 +179,58 @@ Go to **Settings → API** in the Supabase dashboard and copy:
 
 ### 6. Configure Environment
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` and fill in your values:
 
 ```env
+# Core (required)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 CLERK_WEBHOOK_SIGNING_SECRET=whsec_...
+
+# AI (required for report analysis & chat)
 GEMINI_API_KEY=AIza...
+
+# Payments (optional — upgrade page shows a friendly error without them)
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+
+# Email invites (optional — falls back to a shareable invite code)
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=CareDesk <onboarding@resend.dev>
+
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 ```
 
-### 7. Install & Run
+Optional integrations fail gracefully:
+- **Gemini missing** → report analysis/chat return a clear "AI not configured" error
+- **Razorpay missing** → upgrade/checkout is disabled with a friendly message
+- **Resend missing** → family invites return a copyable code (WhatsApp/SMS fallback)
+
+### 7. (Optional) Set Up Razorpay
+
+1. Go to [razorpay.com](https://razorpay.com) and create an account
+2. Copy keys from **Settings → API Keys**:
+   - **Key ID** → `RAZORPAY_KEY_ID`
+   - **Key Secret** → `RAZORPAY_KEY_SECRET`
+3. Go to **Settings → Webhooks** → Create webhook:
+   - URL: `https://your-domain.com/api/razorpay/webhook`
+   - Events: `payment.captured`
+   - Copy the **Secret** → `RAZORPAY_WEBHOOK_SECRET`
+
+### 8. (Optional) Set Up Resend for Invite Emails
+
+1. Go to [resend.com](https://resend.com) and sign up
+2. Create an API key → `RESEND_API_KEY`
+3. Set a verified sender → `RESEND_FROM_EMAIL`
+
+Without Resend, family invites still work — the UI shows the invite code for manual sharing (WhatsApp/SMS/copy).
+
+### 9. Install & Run
 
 ```bash
 npm install
@@ -203,6 +262,9 @@ Open [http://localhost:3000](http://localhost:3000).
 | `library_settings` | Password hash + salt for library lock |
 | `audit_logs` | HIPAA audit trail (service-role only) |
 | `deleted_users` | Deletion tombstones |
+| `feedback` | In-app feedback widget submissions |
+| `subscriptions` | Plan tier, status, and period |
+| `razorpay_orders` | Payment orders (idempotent activation) |
 
 ### Enums
 
@@ -223,10 +285,12 @@ Open [http://localhost:3000](http://localhost:3000).
 |-------|--------|---------|
 | `/api/webhooks/clerk` | POST | Clerk webhook (user sync) |
 | `/api/reports/upload` | POST | Upload report to storage |
+| `/api/reports/presign` | POST | Direct-upload URL (bypasses body-size limit) |
 | `/api/reports/list` | GET | List user's reports |
 | `/api/reports/delete` | DELETE | Delete report + storage file |
 | `/api/reports/analyze` | POST | Re-analyze a report |
 | `/api/reports/analyze-image` | POST | Analyze report image with Gemini vision |
+| `/api/reports/preview` | GET | Signed preview URL for a report |
 | `/api/chat` | POST | Send message, get AI reply |
 | `/api/chat/history` | GET | Get chat history |
 | `/api/chat/clear` | DELETE | Clear all chat messages |
@@ -238,6 +302,12 @@ Open [http://localhost:3000](http://localhost:3000).
 | `/api/family/accept` | POST | Accept invite (via RPC) |
 | `/api/family/member` | POST/DELETE | Confirm or remove member |
 | `/api/library/password` | POST | Set/verify/remove library password |
+| `/api/feedback` | POST | Submit feedback (GET admin-only) |
+| `/api/notifications` | GET/POST | List / mark notifications read |
+| `/api/razorpay/order` | POST | Create payment order |
+| `/api/razorpay/verify` | POST | Verify payment + activate plan |
+| `/api/razorpay/webhook` | POST | Razorpay webhook (payment.captured) |
+| `/api/subscription/status` | GET | Current tier, limits, and usage |
 
 ## Scripts
 

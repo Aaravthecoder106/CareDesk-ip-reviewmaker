@@ -61,6 +61,22 @@ export async function GET() {
     if (!userId) return apiError('Unauthorized', 401)
 
     const admin = createAdminSupabaseClient()
+
+    // Feedback rows contain other users' emails and opinions. The feedback table
+    // is service-role only (no RLS grants), so authorization must happen here:
+    // only admins may list submissions.
+    const { data: caller, error: roleError } = await admin
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+
+    if (roleError) {
+      logger.error({ route: '/api/feedback:GET', err: roleError.message }, 'Failed to verify caller role')
+      return apiError('Failed to verify caller role', 500)
+    }
+
+    if (caller?.[0]?.role !== 'admin') return apiError('Forbidden', 403)
+
     const { data, error } = await admin
       .from('feedback')
       .select('*')
