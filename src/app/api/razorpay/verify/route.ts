@@ -64,6 +64,16 @@ export async function POST(req: NextRequest) {
         await razorpay.payments.capture(razorpay_payment_id, payment.amount || 0, 'INR')
       } catch (err) {
         logger.warn({ route: '/api/razorpay/verify', err: String(err) }, 'Auto-capture warning')
+        // Capture failed — re-fetch to confirm the real status. Never activate
+        // a plan for an uncaptured payment: the merchant would not receive
+        // funds while the user gets premium. If it is still authorized, fail
+        // here and let the payment.captured webhook activate once Razorpay
+        // completes the capture.
+        const recheck = (await razorpay.payments.fetch(razorpay_payment_id)) as { status?: string }
+        if (recheck.status !== 'captured') {
+          logger.warn({ route: '/api/razorpay/verify', userId, razorpay_order_id, status: recheck.status }, 'Payment not captured after capture attempt')
+          return NextResponse.json({ error: 'Payment is not captured yet' }, { status: 400 })
+        }
       }
     }
 

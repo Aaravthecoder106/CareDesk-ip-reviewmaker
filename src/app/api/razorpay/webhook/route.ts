@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { completeRazorpayOrder, cancelSubscription } from '@/lib/data/subscriptions'
+import { completeRazorpayOrder } from '@/lib/data/subscriptions'
 import { logger } from '@/lib/logger'
 import crypto from 'crypto'
 
@@ -57,16 +57,37 @@ export async function POST(req: NextRequest) {
       }
 
       case 'payment.failed': {
+        // Log the failure with whatever identifiers the payload carries.
+        // Razorpay puts the failure reason at payload.payment.entity.
         const payment = event.payload.payment?.entity
-        if (!payment?.notes?.clerk_user_id) break
-        logger.warn({ route: '/api/razorpay/webhook', userId: payment.notes.clerk_user_id }, 'Payment failed')
+        if (!payment?.id) break
+        logger.warn(
+          {
+            route: '/api/razorpay/webhook',
+            orderId: payment.order_id,
+            paymentId: payment.id,
+            reason: payment.error_description || payment.error_code,
+          },
+          'Payment failed'
+        )
         break
       }
 
       case 'subscription.deactivated': {
+        // CareDesk uses one-time orders, not Razorpay subscription plans, so
+        // this event should never arrive legitimately. If it does (dashboard
+        // misconfiguration or a forged-but-signed payload), log it loudly but
+        // do NOT auto-cancel the user's plan: the notes on a subscription
+        // entity are attacker-untrusted for one-time-order flows.
         const subscription = event.payload.subscription?.entity
-        if (!subscription?.notes?.clerk_user_id) break
-        await cancelSubscription(subscription.notes.clerk_user_id)
+        logger.warn(
+          {
+            route: '/api/razorpay/webhook',
+            subscriptionId: subscription?.id,
+            reason: 'unexpected subscription.deactivated event (CareDesk uses one-time orders)',
+          },
+          'Ignoring subscription.deactivated'
+        )
         break
       }
     }

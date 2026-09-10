@@ -105,16 +105,24 @@ export default function UpgradePage() {
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  useEffect(() => {
+  function refreshStatus() {
     fetch('/api/subscription/status')
       .then(r => r.json())
       .then(setStatus)
       .catch(() => {})
+  }
+
+  useEffect(() => {
+    refreshStatus()
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       if (params.get('success') === 'true') {
         setIsSuccess(true)
+        // The banner is shown right after activation; refetch so the pricing
+        // cards reflect the new tier immediately instead of showing stale
+        // "Current Plan: Free" until a manual reload.
+        setTimeout(refreshStatus, 1000)
       }
     }
   }, [])

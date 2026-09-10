@@ -3,6 +3,8 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { getRazorpay, assertRazorpayConfigured, PLANS, type PlanTier } from '@/lib/razorpay'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
+import { apiLimiter } from '@/lib/rate-limit'
+import { applyRateLimit } from '@/lib/api-helpers'
 
 /** All payable plan tiers (excludes 'free') */
 const PAYABLE_PLANS: PlanTier[] = [
@@ -29,6 +31,11 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Order creation calls the Razorpay API — rate limit to prevent abuse
+    // (order spam runs against the merchant account and API quota).
+    const rateLimited = applyRateLimit(req, apiLimiter, userId)
+    if (rateLimited) return rateLimited
 
     const { plan } = await req.json()
     if (!PAYABLE_PLANS.includes(plan)) {
@@ -60,10 +67,13 @@ export async function POST(req: NextRequest) {
     const razorpay = getRazorpay()
     const amount = planConfig.priceInPaise // Already in paise
 
+    // NOTE: Razorpay rejects receipts longer than 40 chars. Keep this short.
+    const receipt = `cd_${userId.slice(0, 10)}_${Date.now().toString(36)}`
+
     const order = await razorpay.orders.create({
       amount,
       currency: 'INR',
-      receipt: `caredesk_${userId.slice(0, 16)}_${plan}_${Date.now()}`,
+      receipt,
       notes: {
         clerk_user_id: userId,
         plan,

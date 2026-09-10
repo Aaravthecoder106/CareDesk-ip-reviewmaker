@@ -182,7 +182,26 @@ export async function completeRazorpayOrder(
     return { ok: true, plan: order.plan, userId: order.user_id, alreadyCompleted: true }
   }
 
+  // Flip the order to 'completed' FIRST, guarded by status='created'. The
+  // guarded update is the idempotency lock: if the webhook and the client
+  // verify call race, exactly one of them wins (rows returned) and proceeds
+  // to activate; the loser sees zero rows and treats the order as already
+  // completed. This prevents both double-activation and the crash-window
+  // where the order is marked done but the subscription was never written.
   const now = new Date()
+  const { data: lockedRows, error: lockError } = await supabase
+    .from('razorpay_orders')
+    .update({ status: 'completed', completed_at: now.toISOString() })
+    .eq('order_id', orderId)
+    .eq('status', 'created')
+    .select('order_id')
+
+  if (lockError) return { ok: false, error: `order lock: ${lockError.message}` }
+  if (!lockedRows || lockedRows.length === 0) {
+    // Another path (webhook vs verify race, or a replay) already completed it.
+    return { ok: true, plan: order.plan, userId: order.user_id, alreadyCompleted: true }
+  }
+
   const periodEnd = new Date(now)
   if (order.plan.includes('monthly')) {
     periodEnd.setMonth(periodEnd.getMonth() + 1)
@@ -190,22 +209,27 @@ export async function completeRazorpayOrder(
     periodEnd.setFullYear(periodEnd.getFullYear() + 1)
   }
 
-  await upsertSubscription({
-    userId: order.user_id,
-    razorpayOrderId: orderId,
-    razorpayPaymentId: paymentId,
-    plan: order.plan,
-    status: 'active',
-    currentPeriodStart: now.toISOString(),
-    currentPeriodEnd: periodEnd.toISOString(),
-  })
-
-  const { error: completeError } = await supabase
-    .from('razorpay_orders')
-    .update({ status: 'completed', completed_at: now.toISOString() })
-    .eq('order_id', orderId)
-    .eq('status', 'created')
-  if (completeError) return { ok: false, error: `order complete: ${completeError.message}` }
+  try {
+    await upsertSubscription({
+      userId: order.user_id,
+      razorpayOrderId: orderId,
+      razorpayPaymentId: paymentId,
+      plan: order.plan,
+      status: 'active',
+      currentPeriodStart: now.toISOString(),
+      currentPeriodEnd: periodEnd.toISOString(),
+    })
+  } catch (subError) {
+    // Activation failed AFTER the order was locked as completed — revert the
+    // lock so a webhook retry can re-run activation instead of losing the
+    // payment (the upsert failure would otherwise leave the user unpaid).
+    await supabase
+      .from('razorpay_orders')
+      .update({ status: 'created', completed_at: null })
+      .eq('order_id', orderId)
+      .eq('status', 'completed')
+    throw subError
+  }
 
   return { ok: true, plan: order.plan, userId: order.user_id, alreadyCompleted: false }
 }
