@@ -73,7 +73,7 @@ const PLANS = {
 
 export default function UpgradePage() {
   const [annual, setAnnual] = useState(true)
-  const [loading, setLoading] = useState(false)
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
   const [success, setSuccess] = useState(false)
 
@@ -109,7 +109,7 @@ export default function UpgradePage() {
   const currentTier = getCurrentTier()
 
   async function handleCheckout(plan: string) {
-    setLoading(true)
+    setLoadingPlan(plan)
     try {
       const orderRes = await fetch('/api/razorpay/order', {
         method: 'POST',
@@ -119,7 +119,7 @@ export default function UpgradePage() {
       const orderData = await orderRes.json()
       if (!orderData.orderId) {
         alert(orderData.error || 'Failed to create order')
-        setLoading(false)
+        setLoadingPlan(null)
         return
       }
 
@@ -150,7 +150,7 @@ export default function UpgradePage() {
         },
         prefill: { name: '', email: '' },
         theme: { color: '#0059bb' },
-        modal: { ondismiss: () => setLoading(false) },
+        modal: { ondismiss: () => setLoadingPlan(null) },
       }
 
       const rzp = new window.Razorpay(options)
@@ -159,7 +159,7 @@ export default function UpgradePage() {
       alert('Payment failed to initialize. Please try again.')
       console.error('Checkout error:', err)
     }
-    setLoading(false)
+    setLoadingPlan(null)
   }
 
   return (
@@ -311,11 +311,11 @@ export default function UpgradePage() {
           ) : (
             <Button
               onClick={() => handleCheckout(annual ? 'pro_individual_annual' : 'pro_individual_monthly')}
-              disabled={loading}
+              disabled={loadingPlan !== null}
               className="w-full btn-primary-gradient"
             >
-              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Zap className="mr-2 size-4" />}
-              Upgrade to Pro
+              {loadingPlan ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Zap className="mr-2 size-4" />}
+              {loadingPlan === (annual ? 'pro_individual_annual' : 'pro_individual_monthly') ? 'Processing…' : 'Upgrade to Pro'}
             </Button>
           )}
         </div>
@@ -386,11 +386,11 @@ export default function UpgradePage() {
           ) : (
             <Button
               onClick={() => handleCheckout(annual ? 'family_annual' : 'family_monthly')}
-              disabled={loading}
+              disabled={loadingPlan !== null}
               className="w-full btn-primary-gradient"
             >
-              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
-              Upgrade to Family Care
+              {loadingPlan ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
+              {loadingPlan === (annual ? 'family_annual' : 'family_monthly') ? 'Processing…' : 'Upgrade to Family Care'}
             </Button>
           )}
         </div>
