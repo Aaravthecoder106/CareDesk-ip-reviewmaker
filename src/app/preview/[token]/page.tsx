@@ -55,6 +55,32 @@ export default function PreviewPage() {
 
   useEffect(() => {
     if (!token) return
+
+    // Handle inline fallback (DB unavailable — data stored in sessionStorage)
+    if (token === 'inline') {
+      try {
+        const raw = sessionStorage.getItem('previewData')
+        if (raw) {
+          const d = JSON.parse(raw)
+          setData({
+            fileName: d.fileName || 'Report',
+            summary: d.summary,
+            labResults: d.labResults || [],
+            medications: d.medications || [],
+            conditions: d.conditions || [],
+            createdAt: new Date().toISOString(),
+          })
+          sessionStorage.removeItem('previewData')
+        } else {
+          setError('No analysis data found. Please upload again.')
+        }
+      } catch {
+        setError('Failed to load preview data.')
+      }
+      setLoading(false)
+      return
+    }
+
     fetch(`/api/public/preview?token=${token}`)
       .then(r => r.json())
       .then(d => {

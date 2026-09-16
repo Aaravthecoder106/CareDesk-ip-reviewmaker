@@ -24,12 +24,17 @@ export default function Home() {
       const data = await res.json()
       if (data.token) {
         window.location.href = `/preview/${data.token}`
+      } else if (data.inline) {
+        // DB unavailable — store analysis in sessionStorage and show inline
+        sessionStorage.setItem('previewData', JSON.stringify(data))
+        window.location.href = '/preview/inline'
       } else {
         setUploadError(data.error || 'Analysis failed. Please try again.')
         setUploading(false)
       }
-    } catch {
-      setUploadError('Upload failed. Please try again.')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Network error'
+      setUploadError(`Upload failed: ${msg}`)
       setUploading(false)
     }
   }
