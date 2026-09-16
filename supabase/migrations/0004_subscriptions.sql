@@ -1,47 +1,38 @@
 -- =============================================================================
--- 0004 — billing tables
+-- 0004 — Subscriptions (Razorpay payment integration)
 --
--- Adds the two tables the payment flow writes to. Both were previously missing
--- from the migration set (the subscriptions table only existed in hand-written
--- TS types), so a fresh deploy could not run /api/razorpay/*.
---
--- subscriptions : one row per user — the effective plan tier and period.
--- razorpay_orders : server-side record of every order we create. The verify
---   endpoint reads the plan/amount from here instead of trusting the client,
---   and flips status to 'completed' exactly once (replay protection).
---
--- Service-role only: no authenticated grants or policies. All reads/writes go
--- through the admin client in trusted server code. RLS is enabled so the
--- default-deny applies to any accidental RLS-scoped access.
+-- Stores the user's current plan tier and Razorpay payment identifiers.
+-- Written by server-side code (service_role) via the order/verify/webhook
+-- routes. Clients read their own row via RLS.
 -- =============================================================================
 
 CREATE TABLE public.subscriptions (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id             TEXT NOT NULL UNIQUE,
-  razorpay_order_id   TEXT,
-  razorpay_payment_id TEXT,
-  plan                TEXT NOT NULL DEFAULT 'free',
-  status              TEXT NOT NULL DEFAULT 'active',
-  current_period_start TIMESTAMPTZ,
-  current_period_end  TIMESTAMPTZ,
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id               TEXT UNIQUE NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  razorpay_order_id     TEXT,
+  razorpay_payment_id   TEXT,
+  plan                  TEXT NOT NULL DEFAULT 'free',  -- free | pro_individual_monthly | pro_individual_annual | family_monthly | family_annual
+  status                TEXT NOT NULL DEFAULT 'active', -- active | canceled | past_due | trialing
+  current_period_start  TIMESTAMPTZ,
+  current_period_end    TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX subscriptions_user_idx ON public.subscriptions(user_id, status);
+
+-- Grants: authenticated users can read their own subscription;
+-- service_role has full access for webhook/order/verify handlers.
+GRANT SELECT ON public.subscriptions TO authenticated;
 GRANT ALL ON public.subscriptions TO service_role;
+
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Users can only read their own subscription.
+CREATE POLICY "subscriptions read own" ON public.subscriptions
+  FOR SELECT TO authenticated
+  USING (public.clerk_user_id() = user_id);
+
+CREATE INDEX subscriptions_user_idx ON public.subscriptions(user_id);
+CREATE INDEX subscriptions_status_idx ON public.subscriptions(status);
+
 CREATE TRIGGER tg_subscriptions_updated BEFORE UPDATE ON public.subscriptions
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
-
-CREATE TABLE public.razorpay_orders (
-  order_id    TEXT PRIMARY KEY,           -- Razorpay order id (order_...)
-  user_id     TEXT NOT NULL,
-  plan        TEXT NOT NULL,
-  amount      INTEGER NOT NULL,           -- paise, as sent to Razorpay
-  status      TEXT NOT NULL DEFAULT 'created', -- created | completed
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ
-);
-CREATE INDEX razorpay_orders_user_idx ON public.razorpay_orders(user_id, created_at DESC);
-GRANT ALL ON public.razorpay_orders TO service_role;
-ALTER TABLE public.razorpay_orders ENABLE ROW LEVEL SECURITY;
