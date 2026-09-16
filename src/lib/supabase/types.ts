@@ -535,6 +535,78 @@ export type Database = {
         };
         Relationships: [];
       };
+      razorpay_orders: {
+        Row: {
+          id: string;
+          order_id: string;
+          user_id: string;
+          plan: string;
+          amount: number;
+          status: string;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          user_id: string;
+          plan: string;
+          amount: number;
+          status?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          user_id?: string;
+          plan?: string;
+          amount?: number;
+          status?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      preview_tokens: {
+        Row: {
+          token: string;
+          file_path: string;
+          mime_type: string;
+          file_name: string;
+          summary: string | null;
+          lab_results: Json;
+          medications: Json;
+          conditions: Json;
+          created_at: string;
+        };
+        Insert: {
+          token: string;
+          file_path: string;
+          mime_type?: string;
+          file_name: string;
+          summary?: string | null;
+          lab_results?: Json;
+          medications?: Json;
+          conditions?: Json;
+          created_at?: string;
+        };
+        Update: {
+          token?: string;
+          file_path?: string;
+          mime_type?: string;
+          file_name?: string;
+          summary?: string | null;
+          lab_results?: Json;
+          medications?: Json;
+          conditions?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       deleted_users: {
         Row: {
           id: string;
@@ -576,42 +648,6 @@ export type Database = {
           would_use?: string;
           liked?: string | null;
           missing?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      preview_tokens: {
-        Row: {
-          token: string;
-          file_path: string;
-          mime_type: string;
-          file_name: string;
-          summary: string | null;
-          lab_results: Json;
-          medications: Json;
-          conditions: Json;
-          created_at: string;
-        };
-        Insert: {
-          token: string;
-          file_path: string;
-          mime_type?: string;
-          file_name: string;
-          summary?: string | null;
-          lab_results?: Json;
-          medications?: Json;
-          conditions?: Json;
-          created_at?: string;
-        };
-        Update: {
-          token?: string;
-          file_path?: string;
-          mime_type?: string;
-          file_name?: string;
-          summary?: string | null;
-          lab_results?: Json;
-          medications?: Json;
-          conditions?: Json;
           created_at?: string;
         };
         Relationships: [];
