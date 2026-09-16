@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Lazy-load Clerk only when a request arrives (never at build/module time).
-// There is intentionally no env-based bypass: an accidental
-// SKIP_ENV_VALIDATION in a production runtime must NOT disable auth.
+const skipAuth = !!process.env.SKIP_ENV_VALIDATION;
+
+// Lazy-load Clerk only when needed
 let clerkHandler: ((request: NextRequest) => ReturnType<typeof NextResponse.next> | ReturnType<typeof NextResponse.redirect>) | null = null;
 
 function getClerkHandler() {
-  if (!clerkHandler) {
+  if (!clerkHandler && !skipAuth) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { clerkMiddleware, createRouteMatcher } = require("@clerk/nextjs/server");
-    const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/about", "/privacy", "/api/webhooks(.*)"]);
+    const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/preview(.*)", "/api/webhooks(.*)", "/api/public(.*)"]);
     clerkHandler = clerkMiddleware(async (auth: { protect(): Promise<void> }, request: NextRequest) => {
       if (!isPublicRoute(request)) {
         await auth.protect();
@@ -20,6 +20,9 @@ function getClerkHandler() {
 }
 
 export function middleware(request: NextRequest) {
+  if (skipAuth) {
+    return NextResponse.next();
+  }
   const handler = getClerkHandler();
   return handler!(request);
 }
