@@ -6,7 +6,6 @@ import { logger } from '@/lib/logger'
 import { reportPresignSchema } from '@/lib/validations'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
 const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp']
 
 export async function POST(req: NextRequest) {
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
     const result = reportPresignSchema.safeParse(body)
 
     if (!result.success) {
-      return apiError(result.error.errors[0].message, 400)
+      return apiError(result.error.issues[0].message, 400)
     }
 
     const { fileName, fileSize } = result.data
