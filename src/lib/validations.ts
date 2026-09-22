@@ -31,6 +31,11 @@ export const chatMessageSchema = z.object({
 export type ChatMessageInput = z.infer<typeof chatMessageSchema>
 
 // ── Reports ──────────────────────────────────────────────────────────────
+export const reportPresignSchema = z.object({
+  fileName: z.string().min(1, 'fileName is required').max(255),
+  fileSize: z.number().optional(),
+})
+
 export const reportIdSchema = z.object({
   reportId: z.string().min(1, 'reportId is required'),
 })
