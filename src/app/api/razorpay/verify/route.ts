@@ -53,7 +53,11 @@ export async function POST(req: NextRequest) {
       status?: string
       amount?: number
     }
-    if (payment.order_id !== razorpay_order_id || (payment.status !== 'captured' && payment.status !== 'authorized')) {
+    if (
+      payment.order_id !== razorpay_order_id ||
+      (payment.status !== 'captured' && payment.status !== 'authorized') ||
+      typeof payment.amount !== 'number'
+    ) {
       logger.warn({ route: '/api/razorpay/verify', userId, razorpay_order_id, paymentStatus: payment.status }, 'Payment not captured or authorized for this order')
       return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 })
     }
@@ -61,7 +65,7 @@ export async function POST(req: NextRequest) {
     // Auto-capture if payment is authorized but not yet captured
     if (payment.status === 'authorized') {
       try {
-        await razorpay.payments.capture(razorpay_payment_id, payment.amount || 0, 'INR')
+        await razorpay.payments.capture(razorpay_payment_id, payment.amount, 'INR')
       } catch (err) {
         logger.warn({ route: '/api/razorpay/verify', err: String(err) }, 'Auto-capture warning')
         // Capture failed — re-fetch to confirm the real status. Never activate
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Activate from the server-side order record (idempotent).
-    const result = await completeRazorpayOrder(razorpay_order_id, razorpay_payment_id)
+    const result = await completeRazorpayOrder(razorpay_order_id, razorpay_payment_id, payment.amount, userId)
     if (!result.ok) {
       logger.warn({ route: '/api/razorpay/verify', userId, razorpay_order_id, err: result.error }, 'Order activation failed')
       return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 })

@@ -11,6 +11,8 @@ import {
   MessageSquare,
   BarChart3,
   Users,
+  Settings,
+  Sparkles,
   Menu,
   X,
 } from 'lucide-react'
@@ -27,6 +29,8 @@ export function MobileNav() {
     { href: '/dashboard/chat', label: t('nav.chat'), icon: MessageSquare },
     { href: '/dashboard/analytics', label: t('nav.analytics'), icon: BarChart3 },
     { href: '/dashboard/family', label: t('nav.family'), icon: Users },
+    { href: '/dashboard/upgrade', label: t('nav.upgrade'), icon: Sparkles },
+    { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
   ]
 
   return (

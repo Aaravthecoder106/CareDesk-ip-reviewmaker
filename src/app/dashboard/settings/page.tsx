@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { Shield, Lock, Unlock, Loader2, Trash2, CreditCard, Crown, Calendar, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { isPlanTier, PLANS } from '@/lib/plans'
 
 export default function SettingsPage() {
   const { t } = useLanguage()
@@ -55,7 +56,7 @@ export default function SettingsPage() {
   }
 
   async function handleCancelSubscription() {
-    if (!confirm('Are you sure you want to cancel your subscription? You will be downgraded to the Free Explorer plan.')) return
+    if (!confirm('Cancel paid access now? You will move to Free Explorer immediately. Existing reports remain stored, but new uploads and premium features will follow Free limits.')) return
     setCancelLoading(true)
     try {
       const res = await fetch('/api/razorpay/cancel', { method: 'POST' })
@@ -73,16 +74,7 @@ export default function SettingsPage() {
   }
 
   function formatTierName(tier: string): string {
-    switch (tier) {
-      case 'pro_individual_monthly':
-      case 'pro_individual_annual':
-        return 'Pro Individual'
-      case 'family_monthly':
-      case 'family_annual':
-        return 'Family Care'
-      default:
-        return 'Free Explorer'
-    }
+    return isPlanTier(tier) ? PLANS[tier].name : PLANS.free.name
   }
 
   async function handleSetPassword() {
@@ -164,7 +156,7 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-1.5 mt-1">
                         <Calendar className="size-3 text-on-surface-variant" />
                         <p className="text-[13px] text-on-surface-variant">
-                          Renews {new Date(sub.currentPeriodEnd).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          Access ends {new Date(sub.currentPeriodEnd).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                       </div>
                     )}

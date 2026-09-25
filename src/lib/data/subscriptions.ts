@@ -1,16 +1,6 @@
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import type { PlanTier } from '@/lib/razorpay'
-import { getPlanLimits } from '@/lib/razorpay'
-
-/** All valid plan tier strings stored in the DB */
-const VALID_TIERS: PlanTier[] = [
-  'free',
-  'pro_individual_monthly',
-  'pro_individual_annual',
-  'family_monthly',
-  'family_annual',
-]
+import { getPlanLimits, isPaidTier, isPaymentAmountValid, isPlanTier, type PlanTier } from '@/lib/plans'
 
 /**
  * Get the current user's subscription tier.
@@ -32,7 +22,7 @@ export async function getUserSubscription(userId: string): Promise<PlanTier> {
   if (data.current_period_end && new Date(data.current_period_end).getTime() < Date.now()) {
     return 'free'
   }
-  if (VALID_TIERS.includes(data.plan as PlanTier)) return data.plan as PlanTier
+  if (isPlanTier(data.plan)) return data.plan as PlanTier
   return 'free'
 }
 
@@ -164,7 +154,9 @@ export type CompleteOrderResult =
  */
 export async function completeRazorpayOrder(
   orderId: string,
-  paymentId: string
+  paymentId: string,
+  paymentAmount: number,
+  expectedUserId?: string
 ): Promise<CompleteOrderResult> {
   const supabase = createAdminSupabaseClient()
 
@@ -174,8 +166,12 @@ export async function completeRazorpayOrder(
     .eq('order_id', orderId)
     .single()
   if (orderError || !order) return { ok: false, error: 'unknown order' }
-  if (!VALID_TIERS.includes(order.plan as PlanTier) || order.plan === 'free') {
-    return { ok: false, error: 'invalid plan on order' }
+  if (!isPaidTier(order.plan)) return { ok: false, error: 'invalid plan on order' }
+  if (expectedUserId && order.user_id !== expectedUserId) {
+    return { ok: false, error: 'order belongs to a different user' }
+  }
+  if (!isPaymentAmountValid(order.plan, order.amount, paymentAmount)) {
+    return { ok: false, error: 'payment amount mismatch' }
   }
 
   if (order.status === 'completed') {
@@ -193,13 +189,20 @@ export async function completeRazorpayOrder(
     .from('razorpay_orders')
     .update({ status: 'completed', completed_at: now.toISOString() })
     .eq('order_id', orderId)
-    .eq('status', 'created')
+    .in('status', ['created', 'failed'])
     .select('order_id')
 
   if (lockError) return { ok: false, error: `order lock: ${lockError.message}` }
   if (!lockedRows || lockedRows.length === 0) {
-    // Another path (webhook vs verify race, or a replay) already completed it.
-    return { ok: true, plan: order.plan, userId: order.user_id, alreadyCompleted: true }
+    const { data: currentOrder } = await supabase
+      .from('razorpay_orders')
+      .select('status')
+      .eq('order_id', orderId)
+      .single()
+    if (currentOrder?.status === 'completed') {
+      return { ok: true, plan: order.plan, userId: order.user_id, alreadyCompleted: true }
+    }
+    return { ok: false, error: `order cannot be completed from ${currentOrder?.status || 'unknown status'}` }
   }
 
   const periodEnd = new Date(now)
@@ -234,6 +237,33 @@ export async function completeRazorpayOrder(
   return { ok: true, plan: order.plan, userId: order.user_id, alreadyCompleted: false }
 }
 
+export async function failRazorpayOrder(orderId: string): Promise<void> {
+  const supabase = createAdminSupabaseClient()
+  const { error } = await supabase
+    .from('razorpay_orders')
+    .update({ status: 'failed' })
+    .eq('order_id', orderId)
+    .in('status', ['created', 'failed'])
+  if (error) throw error
+}
+
+export async function refundRazorpayOrder(orderId: string): Promise<void> {
+  const supabase = createAdminSupabaseClient()
+  const { error: orderError } = await supabase
+    .from('razorpay_orders')
+    .update({ status: 'refunded' })
+    .eq('order_id', orderId)
+    .neq('status', 'refunded')
+  if (orderError) throw orderError
+
+  const { error: subscriptionError } = await supabase
+    .from('subscriptions')
+    .update({ plan: 'free', status: 'canceled', updated_at: new Date().toISOString() })
+    .eq('razorpay_order_id', orderId)
+    .neq('plan', 'free')
+  if (subscriptionError) throw subscriptionError
+}
+
 /**
  * Get subscription details for the settings/billing page.
  */
@@ -254,7 +284,7 @@ export async function getSubscriptionDetails(userId: string) {
     }
   }
 
-  const isActive = data.status === 'active' && VALID_TIERS.includes(data.plan as PlanTier) && data.plan !== 'free'
+  const isActive = data.status === 'active' && isPlanTier(data.plan) && data.plan !== 'free'
 
   return {
     tier: (isActive ? data.plan : 'free') as PlanTier,

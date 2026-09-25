@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { getRazorpay, assertRazorpayConfigured, PLANS, type PlanTier } from '@/lib/razorpay'
+import { getRazorpay, assertRazorpayConfigured } from '@/lib/razorpay'
+import { isPaidTier, PLANS } from '@/lib/plans'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
 import { apiLimiter } from '@/lib/rate-limit'
 import { applyRateLimit } from '@/lib/api-helpers'
-
-/** All payable plan tiers (excludes 'free') */
-const PAYABLE_PLANS: PlanTier[] = [
-  'pro_individual_monthly',
-  'pro_individual_annual',
-  'family_monthly',
-  'family_annual',
-]
 
 /**
  * POST /api/razorpay/order
@@ -38,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (rateLimited) return rateLimited
 
     const { plan } = await req.json()
-    if (!PAYABLE_PLANS.includes(plan)) {
+    if (!isPaidTier(plan)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 

@@ -9,7 +9,7 @@ function getClerkHandler() {
   if (!clerkHandler && !skipAuth) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { clerkMiddleware, createRouteMatcher } = require("@clerk/nextjs/server");
-    const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/preview(.*)", "/api/webhooks(.*)", "/api/public(.*)"]);
+    const isPublicRoute = createRouteMatcher(["/", "/upload", "/sign-in(.*)", "/sign-up(.*)", "/unlock", "/preview(.*)", "/api/webhooks(.*)", "/api/public(.*)"]);
     clerkHandler = clerkMiddleware(async (auth: { protect(): Promise<void> }, request: NextRequest) => {
       if (!isPublicRoute(request)) {
         await auth.protect();

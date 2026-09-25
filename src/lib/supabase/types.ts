@@ -607,6 +607,70 @@ export type Database = {
         };
         Relationships: [];
       };
+      guest_sessions: {
+        Row: {
+          id: string;
+          session_id: string;
+          token_hash: string;
+          report_storage_path: string | null;
+          report: Json;
+          analysis: Json | null;
+          analysis_status: string;
+          health_score: number | null;
+          insights: Json;
+          ip_hash: string;
+          upload_count: number;
+          last_upload_at: string | null;
+          migrated_user_id: string | null;
+          created_at: string;
+          updated_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          token_hash: string;
+          report_storage_path?: string | null;
+          report?: Json;
+          analysis?: Json | null;
+          analysis_status?: string;
+          health_score?: number | null;
+          insights?: Json;
+          ip_hash: string;
+          upload_count?: number;
+          last_upload_at?: string | null;
+          migrated_user_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          token_hash?: string;
+          report_storage_path?: string | null;
+          report?: Json;
+          analysis?: Json | null;
+          analysis_status?: string;
+          health_score?: number | null;
+          insights?: Json;
+          ip_hash?: string;
+          upload_count?: number;
+          last_upload_at?: string | null;
+          migrated_user_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "guest_sessions_migrated_user_id_fkey";
+            columns: ["migrated_user_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       deleted_users: {
         Row: {
           id: string;
@@ -657,6 +721,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      claim_guest_session: {
+        Args: {
+          p_session_id: string;
+          p_token_hash: string;
+          p_ip_hash: string;
+        };
+        Returns: Json;
+      };
       clerk_user_id: {
         Args: Record<string, never>;
         Returns: string;

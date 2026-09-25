@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { completeRazorpayOrder } from '@/lib/data/subscriptions'
+import { completeRazorpayOrder, failRazorpayOrder, refundRazorpayOrder } from '@/lib/data/subscriptions'
+import { getRazorpay } from '@/lib/razorpay'
 import { logger } from '@/lib/logger'
 import crypto from 'crypto'
 
@@ -45,9 +46,9 @@ export async function POST(req: NextRequest) {
     switch (eventType) {
       case 'payment.captured': {
         const payment = event.payload.payment?.entity
-        if (!payment?.order_id) break
+        if (!payment?.order_id || !payment.id || typeof payment.amount !== 'number') break
 
-        const result = await completeRazorpayOrder(payment.order_id, payment.id)
+        const result = await completeRazorpayOrder(payment.order_id, payment.id, payment.amount)
         if (result.ok) {
           logger.info({ route: '/api/razorpay/webhook', orderId: payment.order_id, plan: result.plan, alreadyCompleted: result.alreadyCompleted }, 'Webhook activated subscription')
         } else {
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         // Razorpay puts the failure reason at payload.payment.entity.
         const payment = event.payload.payment?.entity
         if (!payment?.id) break
+        if (payment.order_id) await failRazorpayOrder(payment.order_id)
         logger.warn(
           {
             route: '/api/razorpay/webhook',
@@ -70,6 +72,33 @@ export async function POST(req: NextRequest) {
           },
           'Payment failed'
         )
+        break
+      }
+
+      case 'payment.refunded': {
+        const payment = event.payload.payment?.entity
+        if (payment?.order_id) await refundRazorpayOrder(payment.order_id)
+        break
+      }
+
+      case 'refund.processed': {
+        const refund = event.payload.refund?.entity
+        if (!refund?.payment_id || typeof refund.amount !== 'number') break
+        const payment = await getRazorpay().payments.fetch(refund.payment_id) as {
+          order_id?: string
+          amount?: number
+        }
+        if (payment.order_id && payment.amount === refund.amount) {
+          await refundRazorpayOrder(payment.order_id)
+        } else {
+          logger.info({ route: '/api/razorpay/webhook', paymentId: refund.payment_id, refundAmount: refund.amount }, 'Partial refund retained subscription')
+        }
+        break
+      }
+
+      case 'order.closed': {
+        const order = event.payload.order?.entity
+        if (order?.id) await failRazorpayOrder(order.id)
         break
       }
 

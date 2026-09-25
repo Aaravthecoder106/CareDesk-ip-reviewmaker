@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Check, Star, Sparkles, Zap, Shield, Users, Loader2, FileText } from 'lucide-react'
+import { getPlanRank, isPlanTier, PLANS, type PaidTier, type PlanTier } from '@/lib/plans'
 
 interface SubscriptionStatus {
   tier: string
@@ -17,59 +18,7 @@ declare global {
   }
 }
 
-const PLANS = {
-  free: {
-    name: 'Free Explorer',
-    tagline: 'Get started with basic health insights',
-    monthlyGlobal: '$0',
-    monthlyIndia: '₹0',
-    annualGlobal: '$0',
-    annualIndia: '₹0',
-    maxReports: '2 Lifetime Reports',
-    maxProfiles: '1 Profile',
-    features: [
-      'Basic lab summary',
-      'Standard AI health chat (5 msgs/day)',
-      '7-day chat history',
-    ],
-  },
-  pro_individual: {
-    name: 'Pro Individual',
-    tagline: 'For serious personal health tracking',
-    monthlyGlobal: '$4.99/mo',
-    monthlyIndia: '₹299/mo',
-    annualGlobal: '$49/yr',
-    annualIndia: '₹2,499/yr',
-    annualMonthlyGlobal: '$4.08/mo',
-    annualMonthlyIndia: '₹208/mo',
-    maxReports: '10 Reports / Month',
-    maxProfiles: '1 Profile',
-    features: [
-      'Full biomarker trend graphs',
-      'Unlimited RAG AI health chat',
-      'PDF export for doctor visits',
-      'Medication conflict checker',
-    ],
-  },
-  family: {
-    name: 'Family Care',
-    tagline: 'Complete care for your whole family',
-    monthlyGlobal: '$9.99/mo',
-    monthlyIndia: '₹699/mo',
-    annualGlobal: '$89/yr',
-    annualIndia: '₹5,499/yr',
-    annualMonthlyGlobal: '$7.42/mo',
-    annualMonthlyIndia: '₹458/mo',
-    maxReports: 'Unlimited Reports',
-    maxProfiles: 'Up to 5 Profiles',
-    features: [
-      'All Pro Individual features',
-      'Multi-profile timeline (Parents, Kids)',
-      'Emergency Health Summary card',
-      'Priority AI processing speed',
-    ],
-  },
-}
+const formatInr = (paise: number) => new Intl.NumberFormat('en-IN').format(paise / 100)
 
 export default function UpgradePage() {
   const [annual, setAnnual] = useState(true)
@@ -87,7 +36,10 @@ export default function UpgradePage() {
 
     fetch('/api/subscription/status')
       .then(r => r.json())
-      .then(setStatus)
+      .then((data: SubscriptionStatus) => {
+        setStatus(data)
+        if (isPlanTier(data.tier) && data.tier !== 'free') setAnnual(data.tier.endsWith('_annual'))
+      })
       .catch(() => {})
 
     // Load Razorpay checkout script once
@@ -99,16 +51,13 @@ export default function UpgradePage() {
     }
   }, [])
 
-  function getCurrentTier(): string {
-    if (!status) return 'free'
-    if (status.tier.startsWith('family_')) return 'family'
-    if (status.tier.startsWith('pro_')) return 'pro_individual'
-    return 'free'
-  }
+  const currentTier: PlanTier = isPlanTier(status?.tier) ? status.tier : 'free'
+  const proTier: PaidTier = annual ? 'pro_individual_annual' : 'pro_individual_monthly'
+  const familyTier: PaidTier = annual ? 'family_annual' : 'family_monthly'
+  const proPlan = PLANS[proTier]
+  const familyPlan = PLANS[familyTier]
 
-  const currentTier = getCurrentTier()
-
-  async function handleCheckout(plan: string) {
+  async function handleCheckout(plan: PaidTier) {
     setLoadingPlan(plan)
     try {
       const orderRes = await fetch('/api/razorpay/order', {
@@ -160,6 +109,41 @@ export default function UpgradePage() {
       console.error('Checkout error:', err)
     }
     setLoadingPlan(null)
+  }
+
+  async function handleFreeDowngrade() {
+    if (!confirm('Downgrade to Free Explorer now? Your reports stay stored, but new uploads and features will follow Free limits.')) return
+    setLoadingPlan('free')
+    try {
+      const response = await fetch('/api/razorpay/cancel', { method: 'POST' })
+      const data = await response.json()
+      if (!data.ok) {
+        alert(data.error || 'Failed to downgrade')
+        return
+      }
+      window.location.reload()
+    } catch {
+      alert('Failed to downgrade. Please try again.')
+    } finally {
+      setLoadingPlan(null)
+    }
+  }
+
+  function handlePaidSelection(plan: PaidTier) {
+    if (getPlanRank(plan) < getPlanRank(currentTier)) {
+      const accepted = confirm(`Downgrade to ${PLANS[plan].name} now? A new ${PLANS[plan].interval} billing period starts immediately; existing time is not prorated or credited.`)
+      if (!accepted) return
+    }
+    void handleCheckout(plan)
+  }
+
+  function getActionLabel(plan: PaidTier) {
+    if (currentTier === plan) return 'Current Plan'
+    if (getPlanRank(plan) === getPlanRank(currentTier)) {
+      return `Switch to ${PLANS[plan].interval === 'yearly' ? 'Annual' : 'Monthly'}`
+    }
+    if (getPlanRank(plan) < getPlanRank(currentTier)) return `Downgrade to ${PLANS[plan].name}`
+    return `Upgrade to ${PLANS[plan].name}`
   }
 
   return (
@@ -222,6 +206,10 @@ export default function UpgradePage() {
         </div>
       </div>
 
+      <div className="max-w-3xl mx-auto mb-8 text-center px-4 text-[12px] leading-5 text-on-surface-variant">
+        Paid plans activate immediately. Switching billing periods or downgrading to a paid plan starts a fresh period with no prorated credit. Downgrading to Free is immediate and keeps existing reports.
+      </div>
+
       {/* 3-Tier Pricing Cards */}
       <div className="grid gap-5 sm:gap-6 md:grid-cols-3 max-w-5xl mx-auto">
         {/* Free Explorer */}
@@ -238,8 +226,8 @@ export default function UpgradePage() {
             <span className="text-[14px] text-on-surface-variant ml-1">forever</span>
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">{PLANS.free.maxReports}</span>
-            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">{PLANS.free.maxProfiles}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">{PLANS.free.maxReportsLabel}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">{PLANS.free.maxProfilesLabel}</span>
           </div>
           <ul className="space-y-2.5 mb-6 flex-grow">
             {PLANS.free.features.map((feature) => (
@@ -254,8 +242,14 @@ export default function UpgradePage() {
               Current Plan
             </Button>
           ) : (
-            <Button variant="outline" className="w-full border-outline-variant/50" disabled>
-              Downgrade
+            <Button
+              variant="outline"
+              className="w-full border-outline-variant/50"
+              onClick={() => void handleFreeDowngrade()}
+              disabled={loadingPlan !== null}
+            >
+              {loadingPlan === 'free' && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Downgrade to Free
             </Button>
           )}
         </div>
@@ -265,23 +259,23 @@ export default function UpgradePage() {
           <div className="mb-5">
             <div className="flex items-center gap-2 mb-1">
               <Zap className="size-5 text-electric-blue" />
-              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{PLANS.pro_individual.name}</h3>
+              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{proPlan.name}</h3>
             </div>
-            <p className="text-[13px] text-on-surface-variant">{PLANS.pro_individual.tagline}</p>
+            <p className="text-[13px] text-on-surface-variant">{proPlan.tagline}</p>
           </div>
           <div className="mb-4">
             {annual ? (
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹208</span>
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹{proPlan.equivalentMonthlyInr}</span>
                   <span className="text-[14px] text-on-surface-variant">/month</span>
                 </div>
-                <p className="text-[18px] sm:text-[20px] font-semibold text-secondary mt-1">₹2,499 <span className="text-[13px] font-medium text-on-surface-variant">billed yearly</span></p>
+                <p className="text-[18px] sm:text-[20px] font-semibold text-secondary mt-1">₹{formatInr(proPlan.priceInPaise)} <span className="text-[13px] font-medium text-on-surface-variant">billed yearly</span></p>
               </div>
             ) : (
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹299</span>
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹{proPlan.equivalentMonthlyInr}</span>
                   <span className="text-[14px] text-on-surface-variant">/month</span>
                 </div>
                 <p className="text-[13px] text-on-surface-variant mt-1">Billed monthly</p>
@@ -289,33 +283,29 @@ export default function UpgradePage() {
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-electric-blue/10 text-electric-blue">{PLANS.pro_individual.maxReports}</span>
-            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-electric-blue/10 text-electric-blue">{PLANS.pro_individual.maxProfiles}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-electric-blue/10 text-electric-blue">{proPlan.maxReportsLabel}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-electric-blue/10 text-electric-blue">{proPlan.maxProfilesLabel}</span>
           </div>
           <ul className="space-y-2.5 mb-6 flex-grow">
-            {PLANS.pro_individual.features.map((feature) => (
+            {proPlan.features.map((feature) => (
               <li key={feature} className="flex items-start gap-2.5 text-[13px] text-on-surface">
                 <Check className="size-4 text-electric-blue mt-0.5 shrink-0" />
                 {feature}
               </li>
             ))}
           </ul>
-          {currentTier === 'pro_individual' ? (
+          {currentTier === proTier ? (
             <Button variant="outline" className="w-full border-outline-variant/50" disabled>
-              Active Subscription
-            </Button>
-          ) : currentTier === 'family' ? (
-            <Button variant="outline" className="w-full border-outline-variant/50" disabled>
-              Included in Family Care
+              Current Plan
             </Button>
           ) : (
             <Button
-              onClick={() => handleCheckout(annual ? 'pro_individual_annual' : 'pro_individual_monthly')}
+              onClick={() => handlePaidSelection(proTier)}
               disabled={loadingPlan !== null}
               className="w-full btn-primary-gradient"
             >
-              {loadingPlan ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Zap className="mr-2 size-4" />}
-              {loadingPlan === (annual ? 'pro_individual_annual' : 'pro_individual_monthly') ? 'Processing…' : 'Upgrade to Pro'}
+              {loadingPlan === proTier ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Zap className="mr-2 size-4" />}
+              {loadingPlan === proTier ? 'Processing…' : getActionLabel(proTier)}
             </Button>
           )}
         </div>
@@ -331,23 +321,23 @@ export default function UpgradePage() {
           <div className="mb-5">
             <div className="flex items-center gap-2 mb-1">
               <Users className="size-5 text-secondary" />
-              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{PLANS.family.name}</h3>
+              <h3 className="text-[18px] sm:text-[20px] font-semibold text-deep-navy">{familyPlan.name}</h3>
             </div>
-            <p className="text-[13px] text-on-surface-variant">{PLANS.family.tagline}</p>
+            <p className="text-[13px] text-on-surface-variant">{familyPlan.tagline}</p>
           </div>
           <div className="mb-4">
             {annual ? (
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹458</span>
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹{familyPlan.equivalentMonthlyInr}</span>
                   <span className="text-[14px] text-on-surface-variant">/month</span>
                 </div>
-                <p className="text-[18px] sm:text-[20px] font-semibold text-secondary mt-1">₹5,499 <span className="text-[13px] font-medium text-on-surface-variant">billed yearly — Save 26%</span></p>
+                <p className="text-[18px] sm:text-[20px] font-semibold text-secondary mt-1">₹{formatInr(familyPlan.priceInPaise)} <span className="text-[13px] font-medium text-on-surface-variant">billed yearly</span></p>
               </div>
             ) : (
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹699</span>
+                  <span className="text-[36px] sm:text-[40px] font-bold text-deep-navy">₹{familyPlan.equivalentMonthlyInr}</span>
                   <span className="text-[14px] text-on-surface-variant">/month</span>
                 </div>
                 <p className="text-[13px] text-on-surface-variant mt-1">Billed monthly</p>
@@ -355,8 +345,8 @@ export default function UpgradePage() {
             )}
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-secondary/10 text-secondary">{PLANS.family.maxReports}</span>
-            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-secondary/10 text-secondary">{PLANS.family.maxProfiles}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-secondary/10 text-secondary">{familyPlan.maxReportsLabel}</span>
+            <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-secondary/10 text-secondary">{familyPlan.maxProfilesLabel}</span>
           </div>
 
           {/* Family Value Anchor */}
@@ -371,7 +361,7 @@ export default function UpgradePage() {
           </div>
 
           <ul className="space-y-2.5 mb-6 flex-grow">
-            {PLANS.family.features.map((feature) => (
+            {familyPlan.features.map((feature) => (
               <li key={feature} className="flex items-start gap-2.5 text-[13px] text-on-surface">
                 <Check className="size-4 text-secondary mt-0.5 shrink-0" />
                 {feature}
@@ -379,18 +369,18 @@ export default function UpgradePage() {
             ))}
           </ul>
 
-          {currentTier === 'family' ? (
+          {currentTier === familyTier ? (
             <Button variant="outline" className="w-full border-outline-variant/50" disabled>
-              Active Subscription
+              Current Plan
             </Button>
           ) : (
             <Button
-              onClick={() => handleCheckout(annual ? 'family_annual' : 'family_monthly')}
+              onClick={() => handlePaidSelection(familyTier)}
               disabled={loadingPlan !== null}
               className="w-full btn-primary-gradient"
             >
-              {loadingPlan ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
-              {loadingPlan === (annual ? 'family_annual' : 'family_monthly') ? 'Processing…' : 'Upgrade to Family Care'}
+              {loadingPlan === familyTier ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
+              {loadingPlan === familyTier ? 'Processing…' : getActionLabel(familyTier)}
             </Button>
           )}
         </div>

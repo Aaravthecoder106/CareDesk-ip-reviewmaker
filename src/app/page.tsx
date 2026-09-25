@@ -3,53 +3,12 @@
 import Link from 'next/link'
 import { Show } from '@/components/clerk-shim'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { useState, useRef } from 'react'
-import { Menu, X, Upload, Loader2, FileText } from 'lucide-react'
+import { useState } from 'react'
+import { Menu, X, ArrowRight, ShieldCheck } from 'lucide-react'
 
 export default function Home() {
   useLanguage()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState('')
-  const [dragOver, setDragOver] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  async function handleAnalyzeFile(file: File) {
-    setUploading(true)
-    setUploadError('')
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/public/analyze', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (data.token) {
-        window.location.href = `/preview/${data.token}`
-      } else if (data.inline) {
-        // DB unavailable — store analysis in sessionStorage and show inline
-        sessionStorage.setItem('previewData', JSON.stringify(data))
-        window.location.href = '/preview/inline'
-      } else {
-        setUploadError(data.error || 'Analysis failed. Please try again.')
-        setUploading(false)
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Network error'
-      setUploadError(`Upload failed: ${msg}`)
-      setUploading(false)
-    }
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragOver(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) handleAnalyzeFile(file)
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) handleAnalyzeFile(file)
-  }
 
   return (
     <div className="min-h-screen bg-background text-on-surface overflow-x-hidden">
@@ -81,10 +40,7 @@ export default function Home() {
               {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
             <Show when="signed-out">
-              <Link
-                href="/sign-up"
-                className="btn-primary-gradient px-4 sm:px-6 py-2 rounded-full font-bold text-[13px] sm:text-[14px] active:scale-95 transition-transform duration-200"
-              >
+              <Link href="/upload" className="btn-primary-gradient px-4 sm:px-6 py-2 rounded-full font-bold text-[13px] sm:text-[14px] active:scale-95 transition-transform duration-200">
                 Get Started
               </Link>
             </Show>
@@ -134,55 +90,14 @@ export default function Home() {
                 Turn complex medical reports into clear, actionable insights for you, your family, and your doctor. No signup required — try it free.
               </p>
 
-              {/* Upload Zone — replaces CTA for signed-out users */}
               <Show when="signed-out">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <div
-                  className={`w-full max-w-lg rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer ${
-                    dragOver
-                      ? 'border-electric-blue bg-electric-blue/5 scale-[1.02]'
-                      : 'border-outline-variant/60 hover:border-electric-blue/50 hover:bg-surface-container-low/50'
-                  } ${uploading ? 'pointer-events-none opacity-70' : ''}`}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                  onClick={() => !uploading && fileInputRef.current?.click()}
-                >
-                  <div className="flex flex-col items-center py-8 sm:py-10 px-6">
-                    {uploading ? (
-                      <Loader2 className="size-10 text-electric-blue animate-spin mb-3" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-2xl bg-electric-blue/10 flex items-center justify-center mb-3">
-                        <Upload className="size-7 text-electric-blue" />
-                      </div>
-                    )}
-                    <p className="text-[16px] font-semibold text-deep-navy mb-1">
-                      {uploading ? 'Analyzing your report…' : 'Analyze Your Report'}
-                    </p>
-                    <p className="text-[13px] text-on-surface-variant text-center">
-                      {uploading
-                        ? 'Our AI is reading your report — this takes about 10 seconds'
-                        : 'Drop a lab report, blood test, or medical PDF here — or click to browse'}
-                    </p>
-                    {!uploading && (
-                      <div className="flex items-center gap-2 mt-3 text-[12px] text-on-surface-variant/70">
-                        <FileText className="size-3.5" />
-                        <span>PDF, JPG, PNG up to 20 MB</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {uploadError && (
-                  <p className="mt-3 text-[13px] text-destructive max-w-lg">{uploadError}</p>
-                )}
-                <p className="mt-3 text-[12px] text-on-surface-variant/60 max-w-lg">
-                  Free — no account needed. See a preview of your analysis instantly.
+                <Link href="/upload" className="btn-primary-gradient inline-flex min-h-14 w-full max-w-lg items-center justify-center gap-3 rounded-2xl px-7 py-4 text-[18px] font-bold shadow-lg shadow-electric-blue/20 transition-transform active:scale-[0.98] sm:text-[20px]">
+                  Analyze Your Report
+                  <ArrowRight className="size-6" />
+                </Link>
+                <p className="mt-3 flex items-center gap-2 text-[13px] text-on-surface-variant">
+                  <ShieldCheck className="size-4 text-secondary" />
+                  Free first analysis · no account needed
                 </p>
               </Show>
 

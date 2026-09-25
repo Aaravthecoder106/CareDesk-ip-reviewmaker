@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { GuestMigration } from '@/components/guest-migration'
 
 const hasClerkKey = !!(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -29,6 +30,7 @@ export default function SignUpPage() {
           <p className="mt-2 text-[14px] text-on-surface-variant">Create your account</p>
         </div>
         <SignUp />
+        <GuestMigration />
       </div>
     </main>
   )

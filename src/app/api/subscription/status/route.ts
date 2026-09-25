@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserSubscription, getUserReportCount, getUserFamilyCount, getSubscriptionDetails } from '@/lib/data/subscriptions'
-import { getPlanLimits, PLANS } from '@/lib/razorpay'
+import { getPlanLimits, PLANS } from '@/lib/plans'
 
 /**
  * GET /api/subscription/status
