@@ -502,7 +502,11 @@ Non-object / array entries in the JSONB are dropped rather than inserted as junk
 | Unit tests | `npm test` | ✅ **PASS — 25/25** (20 new guest-migration + 5 existing provisioning) |
 | Production build | `npm run build` (SKIP_ENV_VALIDATION=1) | ✅ **PASS** — routes `/api/public/migrate`, `/dashboard/reports`, `/sign-up`, `/sign-in` present |
 
-### 7b. Hosted browser walk-through (run on your Lovable URL)
+### 7b. Hosted browser walk-through (run on your Vercel deployment)
+
+Vercel is connected to `main`, so commit `54da03a` deploys automatically. Confirm in
+Vercel → Deployments that the newest deployment's commit is `54da03a` before testing.
+Run this against the **production URL** (production env vars + production Supabase):
 
 No live Supabase/Clerk/Gemini credentials exist in this workspace, so the browser legs are yours to run. Exact steps + expected evidence:
 
