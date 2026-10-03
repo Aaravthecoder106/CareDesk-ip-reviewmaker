@@ -28,7 +28,12 @@ export default function SignInPage() {
           <Link href="/" className="text-xl font-bold text-deep-navy tracking-tight">CareDesk</Link>
           <p className="mt-2 text-[14px] text-on-surface-variant">Sign in to your account</p>
         </div>
-        <SignIn />
+        {/*
+          Fallback only: middleware's ?redirect_url= (return the user to the
+          page they were trying to open) still wins when present. This just
+          stops a bare /sign-in visit from dumping users on "/".
+        */}
+        <SignIn fallbackRedirectUrl="/dashboard" />
       </div>
     </main>
   )

@@ -28,7 +28,13 @@ export default function SignUpPage() {
           <Link href="/" className="text-xl font-bold text-deep-navy tracking-tight">CareDesk</Link>
           <p className="mt-2 text-[14px] text-on-surface-variant">Create your account</p>
         </div>
-        <SignUp />
+        {/*
+          forceRedirectUrl: Clerk's default after-sign-up target is "/", which
+          strands guests on the landing page where <GuestMigration /> never
+          mounts — their uploaded report then never migrates. Force the
+          dashboard so the migration trigger always runs.
+        */}
+        <SignUp forceRedirectUrl="/dashboard" />
       </div>
     </main>
   )

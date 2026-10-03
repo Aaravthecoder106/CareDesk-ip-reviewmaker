@@ -8,6 +8,15 @@ const STORAGE_KEY = 'caredesk_preview_token'
 
 type MigrationState = 'idle' | 'migrating' | 'success' | 'error'
 
+interface MigrateResponse {
+  success?: boolean
+  reportId?: string | null
+  redirect?: string
+  alreadyMigrated?: boolean
+  duplicate?: boolean
+  error?: string
+}
+
 /**
  * GuestMigration — runs once after a guest signs up.
  *
@@ -15,7 +24,13 @@ type MigrationState = 'idle' | 'migrating' | 'success' | 'error'
  * their teaser analysis). If found and the user is now authenticated,
  * calls POST /api/public/migrate to move the guest data into their account.
  *
- * This component renders a small overlay during migration and auto-dismisses.
+ * Retry policy:
+ *   - Terminal outcomes (success, 404 gone, 409 owned elsewhere, 410 expired)
+ *     consume the token and latch the attempt for this tab.
+ *   - Retryable outcomes (401 while the session settles, 425 analysis still
+ *     running, 5xx, network errors) release the latch so the next load of an
+ *     authenticated page tries again instead of failing forever.
+ *
  * Mount it in the dashboard layout so it fires on first authenticated page load.
  */
 export function GuestMigration() {
@@ -27,10 +42,11 @@ export function GuestMigration() {
     const token = localStorage.getItem(STORAGE_KEY)
     if (!token) return // No guest session — nothing to migrate
 
-    // Prevent duplicate migration attempts
-    const migrationAttemptKey = `${STORAGE_KEY}_attempted_${token}`
-    if (sessionStorage.getItem(migrationAttemptKey)) return
-    sessionStorage.setItem(migrationAttemptKey, '1')
+    // Prevent concurrent duplicate attempts (two mounts of this component).
+    // Released again on retryable failures.
+    const attemptKey = `${STORAGE_KEY}_attempted_${token}`
+    if (sessionStorage.getItem(attemptKey)) return
+    sessionStorage.setItem(attemptKey, '1')
 
     async function runMigration() {
       setState('migrating')
@@ -43,50 +59,70 @@ export function GuestMigration() {
           body: JSON.stringify({ previewToken: token }),
         })
 
-        const data = await res.json()
+        let data: MigrateResponse = {}
+        try {
+          data = (await res.json()) as MigrateResponse
+        } catch {
+          data = {}
+        }
 
-        if (data.success) {
-          // Clean up localStorage
+        // Not signed in (or the session cookie has not settled yet).
+        // Keep the token, release the latch — retried on the next load.
+        if (res.status === 401) {
+          sessionStorage.removeItem(attemptKey)
+          setState('idle')
+          return
+        }
+
+        if (res.ok && data.success) {
           localStorage.removeItem(STORAGE_KEY)
+          sessionStorage.setItem(attemptKey, '1')
 
-          if (data.alreadyMigrated) {
+          if (data.alreadyMigrated || data.duplicate) {
             setMessage('Report already in your library!')
           } else {
             setMessage('Report migrated successfully!')
           }
           setState('success')
 
-          // Brief pause to show success, then navigate
+          // Brief pause to show success, then navigate to the Report Library.
           setTimeout(() => {
             setState('idle')
             router.push(data.redirect || '/dashboard/reports')
             router.refresh() // Refresh server data
           }, 1500)
-        } else {
-          // Handle specific error cases
-          if (res.status === 410) {
-            // Expired
-            localStorage.removeItem(STORAGE_KEY)
-            setMessage('Your preview session expired. Upload a new report.')
-            setState('error')
-            setTimeout(() => setState('idle'), 4000)
-          } else if (res.status === 409) {
-            // Already migrated to another account
-            localStorage.removeItem(STORAGE_KEY)
-            setState('idle')
-          } else if (res.status === 404) {
-            // Token not found — maybe stale localStorage
-            localStorage.removeItem(STORAGE_KEY)
-            setState('idle')
-          } else {
-            setMessage(data.error || 'Migration failed. You can upload again from the dashboard.')
-            setState('error')
-            setTimeout(() => setState('idle'), 5000)
-          }
+          return
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Network error'
-        setMessage(`Migration failed: ${msg}`)
+
+        // ── Terminal failure modes: consume the token, do not retry ─────
+        if (res.status === 404 || res.status === 409) {
+          localStorage.removeItem(STORAGE_KEY)
+          sessionStorage.setItem(attemptKey, '1')
+          setState('idle')
+          return
+        }
+
+        if (res.status === 410) {
+          localStorage.removeItem(STORAGE_KEY)
+          sessionStorage.setItem(attemptKey, '1')
+          setMessage('Your preview session expired. Upload a new report.')
+          setState('error')
+          setTimeout(() => setState('idle'), 4000)
+          return
+        }
+
+        // ── Retryable failure modes: release the latch, keep the token ──
+        sessionStorage.removeItem(attemptKey)
+        setMessage(
+          data.error ||
+            'Migration failed. It will retry automatically — you can also reload the page.',
+        )
+        setState('error')
+        setTimeout(() => setState('idle'), 5000)
+      } catch {
+        // Network error — retryable.
+        sessionStorage.removeItem(attemptKey)
+        setMessage('Network error while migrating. Reload the page to retry.')
         setState('error')
         setTimeout(() => setState('idle'), 5000)
       }
