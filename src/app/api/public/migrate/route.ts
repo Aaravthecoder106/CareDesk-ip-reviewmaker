@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 
     // ── Step B: Move storage file ───────────────────────────────────────
     // Guest files are stored at: __guest__/{token}.{ext} in the 'reports' bucket
-    let newFilePath = `${userId}/${session.file_name}`
+    const newFilePath = `${userId}/${session.file_name}`
     let fileMovedOk = false
 
     if (session.file_path && session.file_path.length > 0) {
