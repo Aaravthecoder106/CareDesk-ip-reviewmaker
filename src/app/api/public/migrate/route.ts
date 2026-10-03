@@ -189,10 +189,10 @@ export async function POST(req: NextRequest) {
     const reportId = report.id
 
     // ── Step D: Extract & insert lab results ────────────────────────────
-    const labResults = Array.isArray(session.lab_results) ? session.lab_results : []
+    const labResults = (Array.isArray(session.lab_results) ? session.lab_results : []) as Record<string, unknown>[]
     if (labResults.length > 0) {
       try {
-        const labRows = labResults.map((lab: any) => ({
+        const labRows = labResults.map((lab) => ({
           report_id: reportId,
           patient_id: userId,
           test_name: String(lab.test_name || lab.name || 'Unknown Test'),
@@ -217,10 +217,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step E: Extract & insert conditions ──────────────────────────────
-    const conditions = Array.isArray(session.conditions) ? session.conditions : []
+    const conditions = (Array.isArray(session.conditions) ? session.conditions : []) as Record<string, unknown>[]
     if (conditions.length > 0) {
       try {
-        const condRows = conditions.map((cond: any) => ({
+        const condRows = conditions.map((cond) => ({
           patient_id: userId,
           name: String(cond.name || 'Unknown Condition'),
           status: typeof cond.status === 'string' ? cond.status : null,
@@ -242,10 +242,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step F: Extract & insert medications ─────────────────────────────
-    const medications = Array.isArray(session.medications) ? session.medications : []
+    const medications = (Array.isArray(session.medications) ? session.medications : []) as Record<string, unknown>[]
     if (medications.length > 0) {
       try {
-        const medRows = medications.map((med: any) => ({
+        const medRows = medications.map((med) => ({
           patient_id: userId,
           name: String(med.name || 'Unknown Medication'),
           dose: typeof med.dose === 'string' ? med.dose : null,
