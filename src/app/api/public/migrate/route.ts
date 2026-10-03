@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
     const labResults = Array.isArray(session.lab_results) ? session.lab_results : []
     if (labResults.length > 0) {
       try {
-        const labRows = labResults.map((lab: Record<string, unknown>) => ({
+        const labRows = labResults.map((lab: any) => ({
           report_id: reportId,
           patient_id: userId,
           test_name: String(lab.test_name || lab.name || 'Unknown Test'),
@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
     const conditions = Array.isArray(session.conditions) ? session.conditions : []
     if (conditions.length > 0) {
       try {
-        const condRows = conditions.map((cond: Record<string, unknown>) => ({
+        const condRows = conditions.map((cond: any) => ({
           patient_id: userId,
           name: String(cond.name || 'Unknown Condition'),
           status: typeof cond.status === 'string' ? cond.status : null,
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest) {
     const medications = Array.isArray(session.medications) ? session.medications : []
     if (medications.length > 0) {
       try {
-        const medRows = medications.map((med: Record<string, unknown>) => ({
+        const medRows = medications.map((med: any) => ({
           patient_id: userId,
           name: String(med.name || 'Unknown Medication'),
           dose: typeof med.dose === 'string' ? med.dose : null,
