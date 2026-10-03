@@ -1,0 +1,225 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'Public Sans', system-ui, sans-serif;
+
+  /* Liquid Blue Minimalist - Core */
+  --color-background: #f9f9ff;
+  --color-foreground: #0d1c32;
+
+  /* Surface System */
+  --color-surface: #f9f9ff;
+  --color-surface-dim: #ccdaf8;
+  --color-surface-bright: #f9f9ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f0f3ff;
+  --color-surface-container: #e8eeff;
+  --color-surface-container-high: #dfe8ff;
+  --color-surface-container-highest: #d6e3ff;
+  --color-surface-variant: #d6e3ff;
+  --color-surface-tint: #405f91;
+
+  /* On Surface */
+  --color-on-surface: #0d1c32;
+  --color-on-surface-variant: #43474f;
+  --color-inverse-surface: #233148;
+  --color-inverse-on-surface: #ecf0ff;
+
+  /* Primary - Deep Navy */
+  --color-primary: #001736;
+  --color-primary-foreground: #ffffff;
+  --color-primary-container: #002b5b;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #7594ca;
+  --color-inverse-primary: #a9c7ff;
+  --color-primary-fixed: #d6e3ff;
+  --color-primary-fixed-dim: #a9c7ff;
+  --color-on-primary-fixed: #001b3d;
+  --color-on-primary-fixed-variant: #264778;
+
+  /* Secondary - Electric Blue */
+  --color-secondary: #0059bb;
+  --color-secondary-foreground: #ffffff;
+  --color-secondary-container: #0070ea;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #fefcff;
+  --color-secondary-fixed: #d8e2ff;
+  --color-secondary-fixed-dim: #adc7ff;
+  --color-on-secondary-fixed: #001a41;
+  --color-on-secondary-fixed-variant: #004493;
+
+  /* Tertiary */
+  --color-tertiary: #0b1921;
+  --color-tertiary-foreground: #ffffff;
+  --color-tertiary-container: #202e36;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #87969f;
+  --color-tertiary-fixed: #d6e5ef;
+  --color-tertiary-fixed-dim: #bac9d3;
+  --color-on-tertiary-fixed: #0f1d25;
+  --color-on-tertiary-fixed-variant: #3b4951;
+
+  /* Error */
+  --color-destructive: #ba1a1a;
+  --color-destructive-foreground: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  /* Outline */
+  --color-outline: #747780;
+  --color-outline-variant: #c4c6d0;
+  --color-border: #c4c6d0;
+  --color-input: #c4c6d0;
+  --color-ring: #a9c7ff;
+
+  /* CareDesk Custom */
+  --color-deep-navy: #001B3D;
+  --color-electric-blue: #00E0FF;
+  --color-ice-blue-glass: rgba(227, 242, 253, 0.4);
+  --color-gloss-highlight: #FFFFFF;
+
+  /* Chart colors */
+  --color-chart-1: #0059bb;
+  --color-chart-2: #00E0FF;
+  --color-chart-3: #a9c7ff;
+  --color-chart-4: #002b5b;
+  --color-chart-5: #405f91;
+
+  /* Sidebar */
+  --color-sidebar: #f0f3ff;
+  --color-sidebar-foreground: #0d1c32;
+  --color-sidebar-primary: #001736;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #e8eeff;
+  --color-sidebar-accent-foreground: #001736;
+  --color-sidebar-border: #c4c6d0;
+  --color-sidebar-ring: #a9c7ff;
+
+  /* Muted / Card (shadcn compat) */
+  --color-muted: #f0f3ff;
+  --color-muted-foreground: #43474f;
+  --color-card: #ffffff;
+  --color-card-foreground: #0d1c32;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0d1c32;
+  --color-accent: #e8eeff;
+  --color-accent-foreground: #001736;
+
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --spacing: 0.25rem;
+}
+
+:root {
+  --radius: 0.5rem;
+}
+
+/* ===== Liquid Glass Utilities ===== */
+
+.glass-panel {
+  background-color: rgba(227, 242, 253, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  border-left: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 27, 61, 0.05);
+}
+
+.glass-panel-strong {
+  background-color: rgba(227, 242, 253, 0.6);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-top: 1px solid rgba(255, 255, 255, 0.7);
+  border-left: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 32px 0 rgba(0, 27, 61, 0.08);
+}
+
+.organic-radius {
+  border-radius: 1rem 1rem 2rem 1rem;
+}
+
+.btn-primary-gradient {
+  background-color: #0059bb;
+  color: #ffffff;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+  transition: all 0.2s ease;
+}
+.btn-primary-gradient:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-glass {
+  background-color: rgba(227, 242, 253, 0.4);
+  border: 1px solid #00E0FF;
+  color: #001B3D;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s ease;
+}
+.btn-glass:hover {
+  background-color: rgba(0, 224, 255, 0.1);
+}
+
+/* Deep Sea Shadow */
+.deep-sea-shadow {
+  box-shadow: 0 60px 80px -20px rgba(0, 23, 54, 0.05);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(to right, #001B3D, #0059bb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtle glow animation for AI elements */
+@keyframes ai-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 224, 255, 0.1); }
+  50% { box-shadow: 0 0 30px rgba(0, 224, 255, 0.2); }
+}
+
+.ai-glow {
+  animation: ai-glow 3s ease-in-out infinite;
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Public Sans', system-ui, sans-serif;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Prevent text selection on interactive elements for mobile feel */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
