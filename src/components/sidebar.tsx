@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Show, UserButton } from '@/components/clerk-shim'
+import { Show } from '@/components/clerk-shim'
+import { UserMenu } from '@/components/user-menu'
+import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/language-context'
 import {
@@ -34,9 +36,7 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Brand */}
         <div className="px-5 py-5 border-b border-outline-variant/30">
-          <Link href="/" className="font-bold text-lg text-deep-navy tracking-tight">
-            CareDesk
-          </Link>
+          <Logo size="md" />
         </div>
 
         {/* Nav Items */}
@@ -68,13 +68,7 @@ export function Sidebar() {
         <div className="border-t border-outline-variant/30 p-3">
           <Show when="signed-in">
             <div className="flex items-center gap-2.5 px-3 py-2">
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: 'size-8',
-                  },
-                }}
-              />
+              <UserMenu />
               <span className="text-xs text-on-surface-variant">{t('nav.account')}</span>
             </div>
           </Show>

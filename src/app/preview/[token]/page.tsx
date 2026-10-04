@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { Logo } from '@/components/logo'
 import { Loader2, Lock, FileText, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Shield } from 'lucide-react'
 import { savePreviewTokenForMigration } from '@/components/guest-migration'
 
@@ -138,7 +139,7 @@ export default function PreviewPage() {
       {/* Top bar */}
       <nav className="sticky top-0 z-50 glass-panel-strong border-b border-white/50">
         <div className="flex justify-between items-center px-4 sm:px-6 py-3 max-w-[900px] mx-auto">
-          <div className="text-lg font-bold text-deep-navy tracking-tight">CareDesk</div>
+          <Logo size="md" />
           <Link
             href="/sign-up"
             className="btn-primary-gradient px-4 sm:px-5 py-2 rounded-full font-bold text-[13px] active:scale-95 transition-transform"

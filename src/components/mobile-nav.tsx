@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Show, UserButton } from '@/components/clerk-shim'
+import { Show } from '@/components/clerk-shim'
+import { UserMenu } from '@/components/user-menu'
+import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/lib/i18n/language-context'
 import {
@@ -37,18 +39,10 @@ export function MobileNav() {
     <>
       {/* Top bar for mobile */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/40 glass-panel-strong lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <Link href="/" className="font-bold text-lg text-deep-navy tracking-tight">
-          CareDesk
-        </Link>
+        <Logo size="md" />
         <div className="flex items-center gap-2">
           <Show when="signed-in">
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: 'size-8',
-                },
-              }}
-            />
+            <UserMenu />
           </Show>
           <button
             onClick={() => setIsOpen(!isOpen)}

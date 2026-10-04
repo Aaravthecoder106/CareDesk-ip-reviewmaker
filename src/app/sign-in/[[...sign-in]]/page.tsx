@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Logo } from '@/components/logo'
 
 const hasClerkKey = !!(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -11,7 +12,7 @@ export default function SignInPage() {
     return (
       <main className="flex min-h-screen items-center justify-center p-6 bg-background">
         <div className="glass-panel organic-radius w-full max-w-sm text-center p-10">
-          <Link href="/" className="text-xl font-bold text-deep-navy tracking-tight">CareDesk</Link>
+          <Logo size="md" href={false} className="justify-center" />
           <p className="mt-6 text-[14px] text-on-surface-variant">Authentication is not configured. Please set up Clerk keys in your .env file.</p>
           <Link href="/" className="mt-4 inline-block text-[14px] text-secondary hover:underline">← Back to home</Link>
         </div>
@@ -25,7 +26,7 @@ export default function SignInPage() {
     <main className="flex min-h-screen items-center justify-center p-6 bg-background">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-xl font-bold text-deep-navy tracking-tight">CareDesk</Link>
+          <Logo size="md" className="justify-center" />
           <p className="mt-2 text-[14px] text-on-surface-variant">Sign in to your account</p>
         </div>
         {/*

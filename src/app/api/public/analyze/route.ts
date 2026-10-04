@@ -7,6 +7,33 @@ import crypto from 'crypto'
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
 const GUEST_ID = '__guest__'
 
+/**
+ * In-memory store for in-flight chunked guest uploads. Serverless instances
+ * may recycle between requests; the client retries failed chunks, so a lost
+ * cache degrades to a retry rather than corrupting the file.
+ */
+interface ChunkEntry {
+  parts: (Buffer | undefined)[]
+  lastSeen: number
+}
+const chunkStore = new Map<string, ChunkEntry>()
+
+function getChunkStore() {
+  // Opportunistic cleanup of abandoned uploads (10 min TTL).
+  const now = Date.now()
+  for (const [id, entry] of chunkStore) {
+    if (now - entry.lastSeen > 600_000) chunkStore.delete(id)
+  }
+  return chunkStore
+}
+
+/**
+ * Chunked guest uploads: hosts like Vercel cap request bodies at ~4.5 MB, so
+ * the client (landing page) sends files above ~3 MB as sequential slices with
+ * X-File-Index / X-File-Total / X-Upload-Id headers; they are assembled
+ * server-side on the final chunk. Sizes are chosen client-side.
+ */
+
 const TEASER_PROMPT = `You are a medical report analyzer. Analyze the attached medical report and extract structured data.
 
 Return a JSON object with this exact structure (no markdown, just raw JSON):
@@ -35,6 +62,64 @@ If a section has no data, use an empty array. For numeric values, use numbers no
 export async function POST(req: NextRequest) {
   const start = Date.now()
   try {
+    // ── Chunk assembly (files > 3 MB upload in pieces) ──────────────────
+    // The client sends X-File-Index / X-File-Total / X-Upload-Id headers;
+    // the final chunk (index === total - 1) continues into the normal flow.
+    const chunkIndex = Number(req.headers.get('x-file-index') ?? '0')
+    const chunkTotal = Number(req.headers.get('x-file-total') ?? '1')
+    const uploadId = req.headers.get('x-upload-id')
+
+    if (chunkTotal > 1) {
+      if (!uploadId || !Number.isInteger(chunkIndex) || !Number.isInteger(chunkTotal) || chunkIndex < 0 || chunkIndex >= chunkTotal) {
+        return NextResponse.json({ error: 'Invalid chunked upload headers' }, { status: 400 })
+      }
+
+      const contentType = req.headers.get('content-type') || ''
+      if (!contentType.includes('multipart/form-data')) {
+        return NextResponse.json({ error: 'Send chunks as multipart/form-data' }, { status: 400 })
+      }
+
+      const formData = await req.formData()
+      const chunk = formData.get('file') as File | null
+      if (!chunk) return NextResponse.json({ error: 'No chunk provided' }, { status: 400 })
+
+      if (chunkIndex === 0 && chunk.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: 'File too large. Maximum is 20 MB.' }, { status: 400 })
+      }
+
+      // Store in the per-invocation cache. Serverless instances may recycle
+      // between requests; the client re-sends failed chunks, so a lost cache
+      // degrades to a retry rather than corrupting the file.
+      const store = getChunkStore()
+      store.set(uploadId, {
+        parts: store.get(uploadId)?.parts ?? [],
+        lastSeen: Date.now(),
+      })
+      store.get(uploadId)!.parts[chunkIndex] = Buffer.from(await chunk.arrayBuffer())
+      store.get(uploadId)!.lastSeen = Date.now()
+
+      // More chunks coming — acknowledge and wait for the next one.
+      if (chunkIndex < chunkTotal - 1) {
+        return NextResponse.json({ ok: true, received: chunkIndex + 1, of: chunkTotal })
+      }
+
+      // Final chunk: reassemble into a single File-like object.
+      const parts = store.get(uploadId)!.parts
+      if (parts.length !== chunkTotal || parts.some((p) => !p)) {
+        store.delete(uploadId)
+        return NextResponse.json({ error: 'Chunked upload incomplete — please retry' }, { status: 400 })
+      }
+      store.delete(uploadId)
+
+      const fileName = formData.get('fileName') as string | null
+      const receivedMime = formData.get('mimeType') as string | null
+      const assembled = Buffer.concat(parts as Buffer[])
+      const reassembledFile = new File([assembled], fileName || 'report', {
+        type: receivedMime || 'application/octet-stream',
+      })
+      ;(req as NextRequest & { _reassembledFile?: File })._reassembledFile = reassembledFile
+    }
+
     // Quick health-check: if env vars are missing, return a clear message
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'placeholder') {
       return NextResponse.json({
@@ -56,7 +141,8 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData()
-    const file = formData.get('file') as File | null
+    const file = (req as NextRequest & { _reassembledFile?: File })._reassembledFile
+      ?? (formData.get('file') as File | null)
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }

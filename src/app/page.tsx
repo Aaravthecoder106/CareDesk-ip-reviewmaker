@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Show } from '@/components/clerk-shim'
+import { Logo } from '@/components/logo'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { useState, useRef } from 'react'
 import { Menu, X, Upload, Loader2, FileText } from 'lucide-react'
@@ -18,10 +19,36 @@ export default function Home() {
     setUploading(true)
     setUploadError('')
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/public/analyze', { method: 'POST', body: formData })
-      const data = await res.json()
+      const res = await sendAnalyzeRequest(file)
+
+      // Hosts (e.g. Vercel) reject oversized request bodies with an HTML 413
+      // page. Show a clear message instead of failing JSON.parse with
+      // "Unexpected token 'R', \"Request En…\" is not valid JSON".
+      if (res.status === 413) {
+        setUploadError('This file is too large to upload. Please try a smaller file (under 20 MB).')
+        setUploading(false)
+        return
+      }
+
+      const text = await res.text()
+      let data: {
+        token?: string | null
+        inline?: boolean
+        error?: string
+        summary?: string
+        labResults?: unknown[]
+        medications?: unknown[]
+        conditions?: unknown[]
+        fileName?: string
+      } = {}
+      try {
+        data = text ? JSON.parse(text) : {}
+      } catch {
+        setUploadError(`Upload failed: the server returned an unexpected response (HTTP ${res.status}). Please try again.`)
+        setUploading(false)
+        return
+      }
+
       if (data.token) {
         window.location.href = `/preview/${data.token}`
       } else if (data.inline) {
@@ -56,9 +83,7 @@ export default function Home() {
       {/* Navigation Shell */}
       <nav className="fixed top-0 w-full z-50 glass-panel-strong border-b border-white/50">
         <div className="flex justify-between items-center px-4 sm:px-6 md:px-16 py-3 sm:py-4 max-w-[1440px] mx-auto">
-          <div className="text-lg sm:text-xl font-bold text-deep-navy tracking-tight">
-            CareDesk
-          </div>
+          <Logo size="md" />
           {/* Desktop nav links */}
           <div className="hidden md:flex space-x-6 lg:space-x-8 text-[15px]">
             <a className="text-on-surface-variant hover:text-secondary transition-colors px-3 py-2 rounded-lg" href="#features">
@@ -352,7 +377,7 @@ export default function Home() {
         <footer className="w-full mt-12 sm:mt-20 bg-deep-navy text-white px-4 sm:px-6 md:px-16 py-10 sm:py-12">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <div className="flex flex-col gap-3 sm:gap-4">
-              <div className="text-[16px] sm:text-[18px] font-bold text-white">CareDesk</div>
+              <Logo size="md" light />
               <p className="text-surface-dim/70 text-[13px] sm:text-[14px]">© 2025 CareDesk AI. Intelligence for a healthier future.</p>
             </div>
             <div className="flex flex-wrap gap-4 sm:gap-6 md:justify-end items-start mt-2 md:mt-0">
@@ -365,4 +390,53 @@ export default function Home() {
       </main>
     </div>
   )
+}
+
+/** Above this size, upload in slices to stay under host request-body limits. */
+const CHUNK_THRESHOLD = 3 * 1024 * 1024
+const CHUNK_SIZE = 3 * 1024 * 1024
+
+/**
+ * POST the file to /api/public/analyze. Files larger than the chunk threshold
+ * are sent as sequential slices with X-Upload-Id / X-File-Index / X-File-Total
+ * headers; the server assembles them on the last chunk. Hosts like Vercel
+ * reject single bodies over ~4.5 MB with an HTML 413 page, which previously
+ * surfaced as the cryptic "Unexpected token 'R', \"Request En…\" is not valid JSON".
+ */
+async function sendAnalyzeRequest(file: File): Promise<Response> {
+  if (file.size <= CHUNK_THRESHOLD) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return fetch('/api/public/analyze', { method: 'POST', body: formData })
+  }
+
+  const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const total = Math.ceil(file.size / CHUNK_SIZE)
+
+  for (let index = 0; index < total; index++) {
+    const blob = file.slice(index * CHUNK_SIZE, (index + 1) * CHUNK_SIZE)
+    const formData = new FormData()
+    formData.append('file', blob, file.name)
+    if (index === total - 1) {
+      formData.append('fileName', file.name)
+      formData.append('mimeType', file.type)
+    }
+    const res = await fetch('/api/public/analyze', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Upload-Id': uploadId,
+        'X-File-Index': String(index),
+        'X-File-Total': String(total),
+      },
+    })
+    // Intermediate chunk: the server acks and waits for the next slice.
+    if (index < total - 1) {
+      if (!res.ok) return res
+      continue
+    }
+    return res
+  }
+
+  throw new Error('Chunked upload failed')
 }

@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Show, UserButton } from '@/components/clerk-shim'
+import { Show } from '@/components/clerk-shim'
+import { UserMenu } from '@/components/user-menu'
+import { Logo } from '@/components/logo'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { Globe } from 'lucide-react'
 
@@ -11,9 +13,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 glass-panel-strong border-b border-white/50">
       <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 md:px-16">
-        <Link href="/" className="flex items-center gap-2 font-bold text-xl text-deep-navy tracking-tight">
-          CareDesk
-        </Link>
+        <Logo size="lg" />
 
         <Show when="signed-out">
           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -57,13 +57,7 @@ export function Header() {
               <span className="hidden sm:inline">{t('nav.dashboard')}</span>
               <span className="sm:hidden">{t('nav.home')}</span>
             </Link>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: 'size-8',
-                },
-              }}
-            />
+            <UserMenu />
           </div>
         </Show>
       </div>
