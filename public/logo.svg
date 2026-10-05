@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 337" fill="none">
+  <defs>
+    <linearGradient id="teal" x1="75" y1="220" x2="338" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#086b76"/>
+      <stop offset="1" stop-color="#20b8cf"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="173" y1="199" x2="282" y2="93" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12a9bd"/>
+      <stop offset="1" stop-color="#20bed2"/>
+    </linearGradient>
+  </defs>
+  <path d="M104 102C139 49 196 15 251 18c49 3 83 34 91 79 8 46-12 91-49 127l-15-17c30-31 44-65 38-101-6-35-32-58-68-61-46-3-96 27-125 72l-18-15Z" fill="url(#cyan)"/>
+  <path d="M77 205c5-42 33-72 69-72 19 0 35 9 49 25 10-11 22-17 34-17" stroke="#086b76" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M141 176c0-12 9-21 20-21 9 0 17 6 20 14 4-8 11-14 20-14 12 0 21 9 21 21 0 18-25 37-41 50-15-12-40-31-40-50Z" fill="url(#cyan)"/>
+  <circle cx="242" cy="97" r="18" fill="url(#cyan)"/>
+  <path d="M213 128c13-8 29-8 43 0l17 11 21-19-12 38-18 18-5-22-19 46-33-2 19-31-15-16-21 7c-4-12 5-24 23-30Z" fill="url(#cyan)"/>
+  <path d="M76 208c5 38 27 69 62 89 34 20 73 23 108 9 26-10 46-30 68-52 6-6 13-17 8-21-5-5-12 0-18 5l-29 23c10-10 20-19 19-25-2-7-9-7-17-2l-25 17c-15 10-32 13-50 7-27-9-47-27-59-52-7-15-10-30-10-47-20-6-44 3-57 22Z" fill="url(#teal)"/>
+</svg>

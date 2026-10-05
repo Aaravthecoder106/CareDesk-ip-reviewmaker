@@ -30,12 +30,12 @@ export function Logo({ href = '/', showText = true, size = 'md', className = '',
   const content = (
     <>
       <Image
-        src="/logo.png"
+        src="/logo.svg"
         alt="CareDesk logo"
         width={px}
-        height={px}
+        height={Math.round((px * 337) / 380)}
         priority
-        className="shrink-0 rounded-lg"
+        className="shrink-0"
       />
       {showText && (
         <span
