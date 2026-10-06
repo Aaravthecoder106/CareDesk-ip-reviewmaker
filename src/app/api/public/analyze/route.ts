@@ -2,38 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { generateTextWithImages } from '@/lib/ai/gemini'
 import { logger } from '@/lib/logger'
-import { reassembleChunkedUpload } from '@/lib/chunk-upload'
 import crypto from 'crypto'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
 const GUEST_ID = '__guest__'
 
 /**
- * In-memory store for in-flight chunked guest uploads. Serverless instances
- * may recycle between requests; the client retries failed chunks, so a lost
- * cache degrades to a retry rather than corrupting the file.
- */
-interface ChunkEntry {
-  parts: (Buffer | undefined)[]
-  lastSeen: number
-}
-const chunkStore = new Map<string, ChunkEntry>()
-
-function getChunkStore() {
-  // Opportunistic cleanup of abandoned uploads (10 min TTL).
-  const now = Date.now()
-  for (const [id, entry] of chunkStore) {
-    if (now - entry.lastSeen > 600_000) chunkStore.delete(id)
-  }
-  return chunkStore
-}
-
-/**
  * Chunked guest uploads: hosts like Vercel cap request bodies at ~4.5 MB, so
  * the client (landing page) sends files above ~3 MB as sequential slices with
- * X-File-Index / X-File-Total / X-Upload-Id headers; they are assembled
- * server-side on the final chunk. Sizes are chosen client-side.
+ * X-File-Index / X-File-Total / X-Upload-Id headers; they are assembled from
+ * durable storage on the final chunk. The old in-memory map is not reliable in
+ * serverless deployments because requests can land on different instances.
  */
+
+async function readAssembledChunkedUpload(admin: ReturnType<typeof createAdminSupabaseClient>, uploadId: string, totalChunks: number): Promise<Buffer | null> {
+  const prefix = `${GUEST_ID}/_uploads/${uploadId}/`
+  const { data: objects, error } = await admin.storage.from('reports').list(prefix)
+  if (error || !objects) return null
+
+  const chunkFiles = objects
+    .filter((obj) => obj.name.startsWith('chunk-'))
+    .sort((a, b) => Number(a.name.replace(/^chunk-|\.bin$/g, '')) - Number(b.name.replace(/^chunk-|\.bin$/g, '')))
+
+  if (chunkFiles.length !== totalChunks) return null
+
+  const chunks: Buffer[] = []
+  for (const obj of chunkFiles) {
+    const path = `${prefix}${obj.name}`
+    const { data: file, error: downloadError } = await admin.storage.from('reports').download(path)
+    if (downloadError || !file) return null
+    chunks.push(Buffer.from(await file.arrayBuffer()))
+  }
+
+  return Buffer.concat(chunks)
+}
 
 const TEASER_PROMPT = `You are a medical report analyzer. Analyze the attached medical report and extract structured data.
 
@@ -91,29 +93,27 @@ export async function POST(req: NextRequest) {
       // Store in the per-invocation cache. Serverless instances may recycle
       // between requests; the client re-sends failed chunks, so a lost cache
       // degrades to a retry rather than corrupting the file.
-      const store = getChunkStore()
-      const existing = store.get(uploadId) ?? {
-        parts: Array<Buffer | undefined>(chunkTotal).fill(undefined),
-        lastSeen: Date.now(),
-      }
+      const admin = createAdminSupabaseClient()
+      const chunkPath = `${GUEST_ID}/_uploads/${uploadId}/chunk-${chunkIndex}.bin`
+      const { error: chunkUploadError } = await admin.storage
+        .from('reports')
+        .upload(chunkPath, chunk, { contentType: chunk.type || 'application/octet-stream', upsert: true })
 
-      existing.parts[chunkIndex] = Buffer.from(await chunk.arrayBuffer())
-      existing.lastSeen = Date.now()
-      store.set(uploadId, existing)
+      if (chunkUploadError) {
+        logger.error({ route: '/api/public/analyze', step: 'chunk-store', uploadId, chunkIndex, err: chunkUploadError.message }, 'Chunk persistence failed')
+        return NextResponse.json({ error: 'Chunked upload incomplete — please retry' }, { status: 400 })
+      }
 
       // More chunks coming — acknowledge and wait for the next one.
       if (chunkIndex < chunkTotal - 1) {
         return NextResponse.json({ ok: true, received: chunkIndex + 1, of: chunkTotal })
       }
 
-      // Final chunk: reassemble into a single File-like object.
-      const parts = store.get(uploadId)!.parts
-      const assembled = reassembleChunkedUpload(parts, chunkTotal)
+      // Final chunk: fetch all stored chunk files and reassemble into a single File-like object.
+      const assembled = await readAssembledChunkedUpload(admin, uploadId, chunkTotal)
       if (!assembled) {
-        store.delete(uploadId)
         return NextResponse.json({ error: 'Chunked upload incomplete — please retry' }, { status: 400 })
       }
-      store.delete(uploadId)
 
       const fileName = formData.get('fileName') as string | null
       const receivedMime = formData.get('mimeType') as string | null
