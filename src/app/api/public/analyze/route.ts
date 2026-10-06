@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { generateTextWithImages } from '@/lib/ai/gemini'
 import { logger } from '@/lib/logger'
+import { reassembleChunkedUpload } from '@/lib/chunk-upload'
 import crypto from 'crypto'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
@@ -91,12 +92,14 @@ export async function POST(req: NextRequest) {
       // between requests; the client re-sends failed chunks, so a lost cache
       // degrades to a retry rather than corrupting the file.
       const store = getChunkStore()
-      store.set(uploadId, {
-        parts: store.get(uploadId)?.parts ?? [],
+      const existing = store.get(uploadId) ?? {
+        parts: Array<Buffer | undefined>(chunkTotal).fill(undefined),
         lastSeen: Date.now(),
-      })
-      store.get(uploadId)!.parts[chunkIndex] = Buffer.from(await chunk.arrayBuffer())
-      store.get(uploadId)!.lastSeen = Date.now()
+      }
+
+      existing.parts[chunkIndex] = Buffer.from(await chunk.arrayBuffer())
+      existing.lastSeen = Date.now()
+      store.set(uploadId, existing)
 
       // More chunks coming — acknowledge and wait for the next one.
       if (chunkIndex < chunkTotal - 1) {
@@ -105,7 +108,8 @@ export async function POST(req: NextRequest) {
 
       // Final chunk: reassemble into a single File-like object.
       const parts = store.get(uploadId)!.parts
-      if (parts.length !== chunkTotal || parts.some((p) => !p)) {
+      const assembled = reassembleChunkedUpload(parts, chunkTotal)
+      if (!assembled) {
         store.delete(uploadId)
         return NextResponse.json({ error: 'Chunked upload incomplete — please retry' }, { status: 400 })
       }
@@ -113,8 +117,8 @@ export async function POST(req: NextRequest) {
 
       const fileName = formData.get('fileName') as string | null
       const receivedMime = formData.get('mimeType') as string | null
-      const assembled = Buffer.concat(parts as Buffer[])
-      const reassembledFile = new File([assembled], fileName || 'report', {
+      const assembledBytes = new Uint8Array(assembled)
+      const reassembledFile = new File([assembledBytes], fileName || 'report', {
         type: receivedMime || 'application/octet-stream',
       })
       ;(req as NextRequest & { _reassembledFile?: File })._reassembledFile = reassembledFile
