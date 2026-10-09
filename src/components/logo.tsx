@@ -35,6 +35,7 @@ export function Logo({ href = '/', showText = true, size = 'md', className = '',
         width={px}
         height={Math.round((px * 337) / 380)}
         priority
+        unoptimized
         className="shrink-0"
       />
       {showText && (
