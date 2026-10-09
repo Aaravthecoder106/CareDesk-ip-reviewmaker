@@ -65,6 +65,19 @@ If a section has no data, use an empty array. For numeric values, use numbers no
 export async function POST(req: NextRequest) {
   const start = Date.now()
   try {
+    const contentType = req.headers.get('content-type') || ''
+
+    // Only accept FormData uploads for the public route (simpler, no presign needed)
+    if (!contentType.includes('multipart/form-data')) {
+      return NextResponse.json({ error: 'Send a file as multipart/form-data' }, { status: 400 })
+    }
+
+    // A Request body can only be consumed once — read the FormData exactly
+    // once here and reuse it for both chunk assembly and the normal flow.
+    // Reading it a second time threw "Body is unusable: Body has already
+    // been read" on every chunked (file > 3 MB) upload.
+    const formData = await req.formData()
+
     // ── Chunk assembly (files > 3 MB upload in pieces) ──────────────────
     // The client sends X-File-Index / X-File-Total / X-Upload-Id headers;
     // the final chunk (index === total - 1) continues into the normal flow.
@@ -77,12 +90,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid chunked upload headers' }, { status: 400 })
       }
 
-      const contentType = req.headers.get('content-type') || ''
-      if (!contentType.includes('multipart/form-data')) {
-        return NextResponse.json({ error: 'Send chunks as multipart/form-data' }, { status: 400 })
-      }
-
-      const formData = await req.formData()
       const chunk = formData.get('file') as File | null
       if (!chunk) return NextResponse.json({ error: 'No chunk provided' }, { status: 400 })
 
@@ -90,9 +97,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'File too large. Maximum is 20 MB.' }, { status: 400 })
       }
 
-      // Store in the per-invocation cache. Serverless instances may recycle
-      // between requests; the client re-sends failed chunks, so a lost cache
-      // degrades to a retry rather than corrupting the file.
+      // Persist the slice to durable storage. Serverless instances are not
+      // sticky, so an in-memory map would lose chunks that land on a
+      // different instance mid-upload.
       const admin = createAdminSupabaseClient()
       const chunkPath = `${GUEST_ID}/_uploads/${uploadId}/chunk-${chunkIndex}.bin`
       const { error: chunkUploadError } = await admin.storage
@@ -137,14 +144,6 @@ export async function POST(req: NextRequest) {
       }, { status: 503 })
     }
 
-    const contentType = req.headers.get('content-type') || ''
-
-    // Only accept FormData uploads for the public route (simpler, no presign needed)
-    if (!contentType.includes('multipart/form-data')) {
-      return NextResponse.json({ error: 'Send a file as multipart/form-data' }, { status: 400 })
-    }
-
-    const formData = await req.formData()
     const file = (req as NextRequest & { _reassembledFile?: File })._reassembledFile
       ?? (formData.get('file') as File | null)
     if (!file) {

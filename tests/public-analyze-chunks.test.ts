@@ -9,5 +9,8 @@ test('reassembleChunkedUpload rejects sparse or incomplete chunk arrays', () => 
   sparse[2] = Buffer.from('c')
 
   assert.equal(reassembleChunkedUpload(sparse, 3), null)
-  assert.equal(reassembleChunkedUpload([Buffer.from('a'), Buffer.from('b')], 2).toString(), 'ab')
+
+  const joined = reassembleChunkedUpload([Buffer.from('a'), Buffer.from('b')], 2)
+  assert.ok(joined)
+  assert.equal(joined.toString(), 'ab')
 })

@@ -29,7 +29,8 @@ test('local environment uses safe placeholder defaults instead of failing valida
       delete process.env[key]
     }
 
-    process.env.NODE_ENV = 'development'
+    // NODE_ENV is declared readonly by Next's types; write through a cast.
+    ;(process.env as { NODE_ENV?: string }).NODE_ENV = 'development'
 
     const mod = await import('../src/env.ts')
 
