@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { analyzeReport } from '@/lib/ai/analyze-report'
 import { uploadLimiter } from '@/lib/rate-limit'
 import { applyRateLimit, apiError } from '@/lib/api-helpers'
@@ -60,26 +61,62 @@ export async function POST(req: NextRequest) {
         fileSize?: number
       }
 
-      if (!filePath || !fileName) {
-        return apiError('Missing filePath or fileName', 400)
+      if (
+        typeof filePath !== 'string' ||
+        typeof fileName !== 'string' ||
+        fileName.trim().length === 0 ||
+        fileName.length > 255
+      ) {
+        return apiError('Provide a valid filePath and fileName', 400)
       }
 
-      // The path was minted server-side by /api/reports/presign under the
-      // caller's folder. Enforce that here: analysis downloads this path with
-      // the service-role key, so an unvalidated path would let a caller point
-      // the AI pipeline at another user's object (cross-tenant PHI read).
-      if (!filePath.startsWith(`${userId}/`) || filePath.includes('..')) {
-        logger.warn({ route: '/api/reports/upload', userId, filePath }, 'Rejected foreign filePath')
+      // Analysis uses the service-role client, so only accept paths under the
+      // authenticated user's folder and reject traversal-like path segments.
+      if (
+        !filePath.startsWith(`${userId}/`) ||
+        filePath.includes('..') ||
+        filePath.includes('\\') ||
+        filePath.includes('//')
+      ) {
+        logger.warn({ route: '/api/reports/upload', userId }, 'Rejected invalid filePath')
         return apiError('Invalid file path', 400)
       }
 
-      const effectiveMime = mimeType || 'application/pdf'
-      if (!ALLOWED_MIME_TYPES.has(effectiveMime)) {
+      const effectiveMime = mimeType
+      if (typeof effectiveMime !== 'string' || !ALLOWED_MIME_TYPES.has(effectiveMime)) {
         return apiError('Unsupported file type. Upload a PDF or an image (PNG, JPEG, WebP).', 400)
       }
 
-      if (fileSize && fileSize > MAX_FILE_SIZE) {
-        return apiError(`File too large: ${(fileSize / 1024 / 1024).toFixed(1)} MB. Maximum is 20 MB.`, 400)
+      if (typeof fileSize !== 'number' || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_FILE_SIZE) {
+        return apiError('Invalid file size. Maximum allowed size is 20 MB.', 400)
+      }
+
+      // Client-provided fileSize/mimeType are untrusted. Check the stored
+      // object metadata before creating a report or passing it to the AI.
+      step = 'verify-stored-object'
+      const admin = createAdminSupabaseClient()
+      const objectName = filePath.slice(userId.length + 1)
+      const { data: objects, error: listError } = await admin.storage
+        .from('reports')
+        .list(userId, { search: objectName, limit: 100 })
+
+      if (listError) {
+        logger.error({ route: '/api/reports/upload', userId, err: listError.message }, 'Could not verify uploaded object')
+        return apiError('Could not verify uploaded file', 500)
+      }
+
+      const storedObject = objects?.find((object) => object.name === objectName)
+      if (!storedObject) {
+        return apiError('Uploaded file was not found. Please upload it again.', 400)
+      }
+
+      const storedSize = Number(storedObject.metadata?.size ?? storedObject.metadata?.contentLength)
+      const storedMime = storedObject.metadata?.mimetype ?? storedObject.metadata?.contentType
+      if (!Number.isFinite(storedSize) || storedSize <= 0 || storedSize > MAX_FILE_SIZE) {
+        return apiError('Uploaded file exceeds the 20 MB limit or has invalid metadata.', 400)
+      }
+      if (typeof storedMime !== 'string' || !ALLOWED_MIME_TYPES.has(storedMime) || storedMime !== effectiveMime) {
+        return apiError('Uploaded file type does not match the declared type.', 400)
       }
 
       step = 'db-insert'
