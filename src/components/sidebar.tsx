@@ -28,7 +28,7 @@ export function Sidebar() {
     { href: '/dashboard/chat', label: t('nav.chat'), icon: MessageSquare },
     { href: '/dashboard/analytics', label: t('nav.analytics'), icon: BarChart3 },
     { href: '/dashboard/family', label: t('nav.family'), icon: Users },
-    { href: '/dashboard/care', label: 'Care tracking', icon: HeartPulse },
+    { href: '/dashboard/care', label: t('nav.care'), icon: HeartPulse },
     { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
     { href: '/dashboard/upgrade', label: t('nav.upgrade'), icon: Sparkles },
   ]
