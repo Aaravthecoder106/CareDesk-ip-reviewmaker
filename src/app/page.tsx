@@ -149,14 +149,14 @@ export default function Home() {
             <div className="flex flex-col items-start z-10">
               <div className="inline-block px-3 sm:px-4 py-1.5 rounded-full glass-panel border-electric-blue/30 mb-4 sm:mb-6 flex items-center gap-2">
                 <span className="material-symbols-outlined text-electric-blue text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>vital_signs</span>
-                <span className="text-[11px] sm:text-[12px] font-bold tracking-[0.08em] uppercase text-deep-navy">Introducing Next-Gen AI</span>
+                <span className="text-[11px] sm:text-[12px] font-bold tracking-[0.08em] uppercase text-deep-navy">Family care, made clearer</span>
               </div>
               <h1 className="text-[26px] leading-[34px] sm:text-[30px] sm:leading-[38px] md:text-[40px] md:leading-[52px] font-bold text-deep-navy mb-4 sm:mb-6 tracking-tight">
-                Health Intelligence,<br />
-                <span className="gradient-text">Simplified.</span>
+                Care for them,<br />
+                <span className="gradient-text">even from miles away.</span>
               </h1>
               <p className="text-[15px] sm:text-[16px] leading-[26px] sm:leading-[30px] text-on-surface-variant mb-6 sm:mb-10 max-w-lg">
-                Turn complex medical reports into clear, actionable insights for you, your family, and your doctor. No signup required — try it free.
+                Keep a clearer view of your parents’ daily care, from check-ins and health readings to easier-to-understand medical reports. CareDesk helps families stay organized across any distance; it does not replace a clinician.
               </p>
 
               {/* Upload Zone — replaces CTA for signed-out users */}

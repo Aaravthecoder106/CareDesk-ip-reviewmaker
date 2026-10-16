@@ -11,7 +11,7 @@ const publicSans = Public_Sans({
 
 export const metadata: Metadata = {
   title: "CareDesk",
-  description: "AI-powered healthcare platform — Health Intelligence, Simplified.",
+  description: "CareDesk helps families organize eldercare check-ins, health readings, and medical reports from anywhere.",
 };
 
 export const viewport = {
