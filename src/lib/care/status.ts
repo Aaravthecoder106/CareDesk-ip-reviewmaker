@@ -55,13 +55,14 @@ function toNumber(value: number | string | null | undefined): number | null {
   return Number.isFinite(number) ? number : null
 }
 
-export function expectedDoseCount(schedule: string | null): number | null {
+export function expectedDoseCount(schedule: string | null): number {
   const value = (schedule ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
   if (/every\s*6\s*hours?|four times|4\s*(x|times?)|\bqid\b/.test(value)) return 4
   if (/every\s*8\s*hours?|thrice|three times|3\s*(x|times?)|\btid\b/.test(value)) return 3
   if (/every\s*12\s*hours?|twice|two times|2\s*(x|times?)|\bbid\b|morning.{0,20}(evening|night)|(evening|night).{0,20}morning/.test(value)) return 2
   if (/^(daily|once daily|once a day|once per day|every day|qd)$/.test(value) || /every\s*24\s*hours?/.test(value)) return 1
-  return null
+  // Zero marks an unrecognized schedule; it must never be treated as once daily.
+  return 0
 }
 
 export function isOutOfConfiguredRange(vital: CareVitalRecord, thresholds: CareThresholdRecord[]) {
@@ -157,10 +158,10 @@ export function evaluateCareStatus(
   const outOfRange = todayVitals.some((vital) => isOutOfConfiguredRange(vital, thresholds))
   const takenToday = todayDoses.filter((dose) => dose.status === 'taken').length
   const expectedCounts = medications.map((medication) => expectedDoseCount(medication.schedule))
-  const expectedToday = expectedCounts.reduce((total, count) => total + (count ?? 0), 0)
+  const expectedToday = expectedCounts.reduce((total, count) => total + count, 0)
   const allMedicationDosesTaken = medications.length > 0 && medications.every((medication, index) => {
-    const expectedCount = expectedCounts[index]
-    if (expectedCount === null) return false
+    const expectedCount = expectedCounts[index] ?? 0
+    if (expectedCount === 0) return false
     const medicationDoses = todayDoses.filter((dose) => dose.medication_id === medication.id)
     return medicationDoses.length >= expectedCount
       && medicationDoses.every((dose) => dose.status === 'taken')
@@ -183,7 +184,7 @@ export function evaluateCareStatus(
     reasonCode = 'readings_pending'
   } else if (medications.length === 0) {
     reasonCode = 'medication_schedule_missing'
-  } else if (expectedCounts.some((count) => count === null)) {
+  } else if (expectedCounts.some((count) => count === 0)) {
     reasonCode = 'medication_schedule_review'
   } else if (!allMedicationDosesTaken) {
     reasonCode = 'medication_log_incomplete'
