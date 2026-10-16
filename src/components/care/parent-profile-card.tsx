@@ -41,6 +41,7 @@ const REASON_TRANSLATION: Record<CareStatusReason, string> = {
   out_of_range: 'careReason.outOfRange',
   readings_pending: 'careReason.readingsPending',
   medication_schedule_missing: 'careReason.medicationScheduleMissing',
+  medication_schedule_review: 'careReason.medicationScheduleReview',
   medication_log_incomplete: 'careReason.medicationLogIncomplete',
   baseline_missing: 'careReason.baselineMissing',
   all_good: 'careReason.allGood',
@@ -127,7 +128,9 @@ export function ParentProfileCard({ profile }: { profile: CareOverviewRecipient 
         <p className="text-xs text-on-surface-variant">
           {consentNeeded
             ? t('careCard.consentRequired')
-            : profile.medication_summary.expected_today > 0
+            : profile.medication_summary.active_medications > 0 && profile.medication_summary.expected_today === 0
+              ? t('careCard.medicationScheduleReview')
+              : profile.medication_summary.expected_today > 0
               ? t('careCard.doseSummary', {
                   taken: profile.medication_summary.taken_today,
                   expected: profile.medication_summary.expected_today,
