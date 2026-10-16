@@ -115,7 +115,7 @@ export async function analyzeReport(
       // Keep the original model reply available to the user, but never weaken the
       // fixed disclaimer or treat unparsed text as structured lab results.
       logger.warn({ route: 'analyzeReport', reportId }, 'Model returned invalid JSON; preserving text as English fallback')
-      parsed = normalizeReportAnalysis({ summaryEnglish: response }, response)
+      parsed = normalizeReportAnalysis({}, response)
     }
 
     // Re-analysis must not duplicate: replace this report's labs wholesale.

@@ -198,7 +198,7 @@ export async function POST(req: NextRequest) {
       analysis = normalizeReportAnalysis(parseJsonReply<unknown>(response))
     } catch {
       logger.warn({ route: '/api/public/analyze', step: 'parse' }, 'Model returned invalid JSON; preserving text as English fallback')
-      analysis = normalizeReportAnalysis({ summaryEnglish: response }, response)
+      analysis = normalizeReportAnalysis({}, response)
     }
 
     // Store the preview result (best-effort — if table is missing, still return token via query param)

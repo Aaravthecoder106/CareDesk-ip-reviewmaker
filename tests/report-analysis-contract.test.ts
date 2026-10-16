@@ -7,6 +7,7 @@ import {
   MEDICAL_DISCLAIMER,
   normalizeExtractedVitals,
   normalizeReportAnalysis,
+  safeFallbackSummary,
 } from '../src/lib/reports/report-analysis.ts'
 
 test('normalizes bilingual summaries while retaining the legacy English summary alias', () => {
@@ -107,6 +108,17 @@ test('limits doctor-discussion prompts to five and removes empty/non-string entr
     'Question 4',
     'Question 5',
   ])
+})
+
+test('keeps useful plain prose as a fallback summary', () => {
+  const analysis = normalizeReportAnalysis({}, 'The report appears to list a complete blood count.')
+  assert.equal(analysis.summaryEnglish, 'The report appears to list a complete blood count.')
+})
+
+test('rejects raw JSON blobs as visible fallback summaries', () => {
+  const jsonBlob = '{"summaryEnglish":"unparsed","labResults":[{"value":7}]}'
+  assert.equal(safeFallbackSummary(jsonBlob), null)
+  assert.equal(normalizeReportAnalysis({}, jsonBlob).summaryEnglish, ENGLISH_FALLBACK)
 })
 
 test('uses a safe non-diagnostic fallback if the model returns no summary', () => {

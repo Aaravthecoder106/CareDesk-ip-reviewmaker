@@ -176,14 +176,23 @@ function normalizeQuestions(value: unknown): string[] {
     .slice(0, 5)
 }
 
+/**
+ * If the model returns invalid JSON, keep useful plain prose but don't put a
+ * JSON blob into the user-facing summary area.
+ */
+export function safeFallbackSummary(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed || /^\s*(\{|\[)/.test(trimmed)) return null
+  return trimmed
+}
+
 /** The disclaimer is hard-coded so an LLM cannot weaken or omit it. */
 export function normalizeReportAnalysis(input: unknown, fallbackText = ''): ReportAnalysis {
   const source = isRecord(input) ? input : {}
   const summaryEnglish = nonEmptyString(source.summaryEnglish)
     ?? nonEmptyString(source.summary_english)
     ?? nonEmptyString(source.summary)
-    ?? nonEmptyString(fallbackText)
-    ?? ENGLISH_FALLBACK
+    ?? (safeFallbackSummary(fallbackText) ?? ENGLISH_FALLBACK)
   const summaryHinglish = nonEmptyString(source.summaryHinglish)
     ?? nonEmptyString(source.summary_hinglish)
     ?? HINGLISH_FALLBACK
