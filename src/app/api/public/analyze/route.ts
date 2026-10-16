@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
-import { generateTextWithImages } from '@/lib/ai/gemini'
+import { generateTextWithImages, parseJsonReply } from '@/lib/ai/gemini'
 import { logger } from '@/lib/logger'
 import crypto from 'crypto'
+import { IMAGE_REPORT_ANALYSIS_PROMPT } from '@/lib/ai/report-analysis-prompts'
+import {
+  MEDICAL_DISCLAIMER,
+  normalizeReportAnalysis,
+  type ReportAnalysis,
+} from '@/lib/reports/report-analysis'
+import type { Json } from '@/lib/supabase/types'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
 const GUEST_ID = '__guest__'
@@ -36,24 +43,6 @@ async function readAssembledChunkedUpload(admin: ReturnType<typeof createAdminSu
 
   return Buffer.concat(chunks)
 }
-
-const TEASER_PROMPT = `You are a medical report analyzer. Analyze the attached medical report and extract structured data.
-
-Return a JSON object with this exact structure (no markdown, just raw JSON):
-{
-  "summary": "A clear 2-3 sentence summary of the report",
-  "labResults": [
-    { "test_name": "Test Name", "value": 123.45, "unit": "mg/dL", "flag": "normal|high|low|critical" }
-  ],
-  "medications": [
-    { "name": "Medication Name", "dose": "10mg", "frequency": "twice daily" }
-  ],
-  "conditions": [
-    { "name": "Condition Name", "status": "active|resolved|chronic" }
-  ]
-}
-
-If a section has no data, use an empty array. For numeric values, use numbers not strings. For flags, use one of: normal, high, low, critical.`
 
 /**
  * POST /api/public/analyze
@@ -192,7 +181,7 @@ export async function POST(req: NextRequest) {
 
     let response: string
     try {
-      response = await generateTextWithImages(TEASER_PROMPT, [
+      response = await generateTextWithImages(IMAGE_REPORT_ANALYSIS_PROMPT, [
         { data: base64, mimeType },
       ])
     } catch (aiErr) {
@@ -203,25 +192,14 @@ export async function POST(req: NextRequest) {
       }, { status: 500 })
     }
 
-    // Parse the AI response
-    let analysis: {
-      summary: string
-      labResults: { test_name: string; value: number | null; unit: string | null; flag: string | null }[]
-      medications: { name: string; dose: string | null; frequency: string | null }[]
-      conditions: { name: string; status: string | null }[]
-    }
-
+    // Normalize new and legacy-shaped model replies into one stable contract.
+    let analysis: ReportAnalysis
     try {
-      // Strip markdown code fences if present
-      const cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-      analysis = JSON.parse(cleaned)
+      analysis = normalizeReportAnalysis(parseJsonReply<unknown>(response))
     } catch {
-      analysis = { summary: response, labResults: [], medications: [], conditions: [] }
+      logger.warn({ route: '/api/public/analyze', step: 'parse' }, 'Model returned invalid JSON; preserving text as English fallback')
+      analysis = normalizeReportAnalysis({ summaryEnglish: response }, response)
     }
-
-    analysis.labResults ??= []
-    analysis.medications ??= []
-    analysis.conditions ??= []
 
     // Store the preview result (best-effort — if table is missing, still return token via query param)
     let dbOk = false
@@ -231,10 +209,15 @@ export async function POST(req: NextRequest) {
         file_path: storageOk ? filePath : '',
         mime_type: mimeType,
         file_name: file.name,
-        summary: analysis.summary,
-        lab_results: analysis.labResults,
-        medications: analysis.medications,
-        conditions: analysis.conditions,
+        summary: analysis.summaryEnglish,
+        summary_english: analysis.summaryEnglish,
+        summary_hinglish: analysis.summaryHinglish,
+        lab_results: analysis.labResults as unknown as Json,
+        medications: analysis.medications as unknown as Json,
+        conditions: analysis.conditions as unknown as Json,
+        extracted_vitals: analysis.extractedVitals as unknown as Json,
+        questions_for_doctor: analysis.questionsForDoctor as unknown as Json,
+        medical_disclaimer: MEDICAL_DISCLAIMER,
       })
       if (insertError) {
         if (insertError.code === '42P01') {
@@ -264,10 +247,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       token: null,
       inline: true,
-      summary: analysis.summary,
+      summary: analysis.summaryEnglish,
+      summaryEnglish: analysis.summaryEnglish,
+      summaryHinglish: analysis.summaryHinglish,
       labResults: analysis.labResults,
       medications: analysis.medications,
       conditions: analysis.conditions,
+      extractedVitals: analysis.extractedVitals,
+      questionsForDoctor: analysis.questionsForDoctor,
+      medicalDisclaimer: MEDICAL_DISCLAIMER,
       fileName: file.name,
     })
   } catch (err) {

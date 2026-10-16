@@ -36,9 +36,14 @@ export default function Home() {
         inline?: boolean
         error?: string
         summary?: string
+        summaryEnglish?: string
+        summaryHinglish?: string
         labResults?: unknown[]
         medications?: unknown[]
         conditions?: unknown[]
+        extractedVitals?: unknown
+        questionsForDoctor?: string[]
+        medicalDisclaimer?: string
         fileName?: string
       } = {}
       try {
