@@ -90,8 +90,16 @@ test('status stays Yellow when medication records are incomplete', () => {
   assert.equal(result.reason_code, 'medication_log_incomplete')
 })
 
-test('schedule parsing conservatively derives common daily dose counts', () => {
+test('schedule parsing recognizes common schedules and does not guess unknown ones', () => {
   assert.equal(expectedDoseCount('Daily'), 1)
   assert.equal(expectedDoseCount('Twice daily'), 2)
   assert.equal(expectedDoseCount('Every 8 hours'), 3)
+  assert.equal(expectedDoseCount('Morning, after lunch, and at bedtime'), null)
+})
+
+test('an unclear medication schedule prevents Green status', () => {
+  const unclearMedication = { ...medications[0], schedule: 'As directed' }
+  const result = evaluateCareStatus([bloodPressure, bloodSugar], [takenDose], [unclearMedication], baselines)
+  assert.equal(result.status, 'YELLOW')
+  assert.equal(result.reason_code, 'medication_schedule_review')
 })

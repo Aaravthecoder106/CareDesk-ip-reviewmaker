@@ -55,12 +55,13 @@ function toNumber(value: number | string | null | undefined): number | null {
   return Number.isFinite(number) ? number : null
 }
 
-export function expectedDoseCount(schedule: string | null) {
-  const value = (schedule ?? '').toLowerCase().replace(/\s+/g, ' ')
-  if (/every\s*6\s*hours?|four times|4\s*(x|times?)/.test(value)) return 4
-  if (/every\s*8\s*hours?|thrice|three times|3\s*(x|times?)/.test(value)) return 3
-  if (/every\s*12\s*hours?|twice|two times|2\s*(x|times?)|morning.{0,20}(evening|night)|(evening|night).{0,20}morning/.test(value)) return 2
-  return 1
+export function expectedDoseCount(schedule: string | null): number | null {
+  const value = (schedule ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+  if (/every\s*6\s*hours?|four times|4\s*(x|times?)|\bqid\b/.test(value)) return 4
+  if (/every\s*8\s*hours?|thrice|three times|3\s*(x|times?)|\btid\b/.test(value)) return 3
+  if (/every\s*12\s*hours?|twice|two times|2\s*(x|times?)|\bbid\b|morning.{0,20}(evening|night)|(evening|night).{0,20}morning/.test(value)) return 2
+  if (/^(daily|once daily|once a day|once per day|every day|qd)$/.test(value) || /every\s*24\s*hours?/.test(value)) return 1
+  return null
 }
 
 export function isOutOfConfiguredRange(vital: CareVitalRecord, thresholds: CareThresholdRecord[]) {
@@ -155,10 +156,13 @@ export function evaluateCareStatus(
   const missedDose = todayDoses.some((dose) => dose.status === 'missed')
   const outOfRange = todayVitals.some((vital) => isOutOfConfiguredRange(vital, thresholds))
   const takenToday = todayDoses.filter((dose) => dose.status === 'taken').length
-  const expectedToday = medications.reduce((total, medication) => total + expectedDoseCount(medication.schedule), 0)
-  const allMedicationDosesTaken = medications.length > 0 && medications.every((medication) => {
+  const expectedCounts = medications.map((medication) => expectedDoseCount(medication.schedule))
+  const expectedToday = expectedCounts.reduce((total, count) => total + (count ?? 0), 0)
+  const allMedicationDosesTaken = medications.length > 0 && medications.every((medication, index) => {
+    const expectedCount = expectedCounts[index]
+    if (expectedCount === null) return false
     const medicationDoses = todayDoses.filter((dose) => dose.medication_id === medication.id)
-    return medicationDoses.length >= expectedDoseCount(medication.schedule)
+    return medicationDoses.length >= expectedCount
       && medicationDoses.every((dose) => dose.status === 'taken')
   })
   const hasBloodPressureToday = todayVitals.some((vital) => vital.vital_type === 'blood_pressure')
@@ -179,6 +183,8 @@ export function evaluateCareStatus(
     reasonCode = 'readings_pending'
   } else if (medications.length === 0) {
     reasonCode = 'medication_schedule_missing'
+  } else if (expectedCounts.some((count) => count === null)) {
+    reasonCode = 'medication_schedule_review'
   } else if (!allMedicationDosesTaken) {
     reasonCode = 'medication_log_incomplete'
   } else if (!completeBaselines) {

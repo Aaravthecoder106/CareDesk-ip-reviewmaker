@@ -10,6 +10,7 @@ export type CareStatusReason =
   | 'out_of_range'
   | 'readings_pending'
   | 'medication_schedule_missing'
+  | 'medication_schedule_review'
   | 'medication_log_incomplete'
   | 'baseline_missing'
   | 'all_good'
