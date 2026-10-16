@@ -32,9 +32,20 @@ function makeSession(overrides: Partial<GuestSession> = {}): GuestSession {
     mime_type: 'application/pdf',
     file_name: 'blood-report.pdf',
     summary: 'Fasting glucose is elevated at 145 mg/dL.',
+    summary_english: 'Fasting glucose is elevated at 145 mg/dL.',
+    summary_hinglish: 'Report mein fasting glucose 145 mg/dL dikh raha hai.',
     lab_results: [{ test_name: 'Fasting Glucose', value: 145, unit: 'mg/dL', flag: 'high' }],
     medications: [{ name: 'Metformin', dose: '500mg', frequency: 'twice daily' }],
     conditions: [{ name: 'Type 2 Diabetes', status: 'active' }],
+    extracted_vitals: {
+      hba1c: { value: 6.8, rawValue: '6.8', unit: '%', referenceRange: null, flag: 'high', sourceText: 'HbA1c 6.8%' },
+      fastingBloodSugar: null,
+      totalCholesterol: null,
+      hemoglobin: null,
+      vitaminD: null,
+      vitaminB12: null,
+    },
+    questions_for_doctor: ['What does this result mean in context?'],
     created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1h old
     migrated_user_id: null,
     ...overrides,
@@ -242,6 +253,18 @@ test('migrates a guest session end-to-end: report + labs + conditions + meds + f
   assert.equal(report.file_path, 'user_clerk_1/blood-report.pdf')
   assert.equal(report.mime_type, 'application/pdf')
   assert.equal(report.ai_summary, 'Fasting glucose is elevated at 145 mg/dL.')
+  assert.equal(report.ai_summary_english, 'Fasting glucose is elevated at 145 mg/dL.')
+  assert.equal(report.ai_summary_hinglish, 'Report mein fasting glucose 145 mg/dL dikh raha hai.')
+  assert.deepEqual(report.extracted_vitals, {
+    hba1c: { value: 6.8, rawValue: '6.8', unit: '%', referenceRange: null, flag: 'high', sourceText: 'HbA1c 6.8%' },
+    fastingBloodSugar: null,
+    totalCholesterol: null,
+    hemoglobin: null,
+    vitaminD: null,
+    vitaminB12: null,
+  })
+  assert.deepEqual(report.questions_for_doctor, ['What does this result mean in context?'])
+  assert.equal('medical_disclaimer' in report, false) // database default owns this fixed field
   assert.equal(report.status, 'ready')
 
   // Extracted rows (Steps D, E, F) — linked to the new report

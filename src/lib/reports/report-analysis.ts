@@ -53,7 +53,7 @@ export const MEDICAL_DISCLAIMER =
   'Medical disclaimer: This is an informational summary of the uploaded medical report, not a clinical diagnosis or treatment recommendation. AI extraction can be incomplete or incorrect and does not replace review by a qualified healthcare professional. Do not start, stop, or change medicines or treatment based on this summary. For urgent symptoms, seek emergency medical care.'
 
 export const HINGLISH_FALLBACK =
-  'Hinglish summary is not available for this report. Please read the English summary and ask a qualified healthcare professional to review the original report.'
+  'Hinglish summary abhi generate nahi ho paaya. Kripya original report ko qualified doctor ke saath review karein; yeh summary medical advice ka replacement nahi hai.'
 
 export const ENGLISH_FALLBACK =
   'A readable summary could not be generated from this report. Please review the original report with a qualified healthcare professional.'
