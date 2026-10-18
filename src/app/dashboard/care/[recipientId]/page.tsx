@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'\nimport type { FormEvent } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import {
