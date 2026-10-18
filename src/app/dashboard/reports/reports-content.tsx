@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { FolderOpen, Upload, Trash2, RefreshCw, FileText, Loader2, Lock, Eye } from 'lucide-react'
+import { ReportMetricCards } from '@/components/reports/report-metric-cards'
+import { MEDICAL_DISCLAIMER, HINGLISH_FALLBACK } from '@/lib/reports/report-analysis'
+import { FolderOpen, Upload, Trash2, RefreshCw, FileText, Loader2, Lock, Eye, Shield } from 'lucide-react'
 
 interface Report {
   id: string
@@ -11,6 +13,11 @@ interface Report {
   file_path: string
   mime_type: string | null
   ai_summary: string | null
+  ai_summary_english: string | null
+  ai_summary_hinglish: string | null
+  extracted_vitals: unknown
+  questions_for_doctor: unknown
+  medical_disclaimer: string | null
   status: string
   created_at: string
 }
@@ -332,12 +339,60 @@ export default function ReportsPage() {
                         )}
                       </span>
                     </p>
-                    {report.ai_summary && (
-                      <div className="mt-2 bg-electric-blue/5 rounded-lg p-2.5 border border-electric-blue/10">
-                        <p className="text-[14px] text-on-surface line-clamp-2">
-                          {report.ai_summary}
+                    {(report.ai_summary_english || report.ai_summary) && report.status === 'ready' && (
+                      <div className="mt-2 rounded-lg border border-electric-blue/10 bg-electric-blue/5 p-2.5">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">English summary</p>
+                        <p className="line-clamp-2 text-[14px] text-on-surface">
+                          {report.ai_summary_english || report.ai_summary}
                         </p>
                       </div>
+                    )}
+                    {report.status === 'ready' && (
+                      <details className="mt-3 rounded-xl border border-outline-variant/60 bg-white/70 p-3.5">
+                        <summary className="cursor-pointer text-sm font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                          View bilingual analysis and key biomarkers
+                        </summary>
+                        <div className="mt-4 space-y-4">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <section className="min-w-0 rounded-lg bg-surface-container-low/60 p-3">
+                              <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">English summary</h4>
+                              <p className="whitespace-pre-line text-sm leading-6 text-on-surface">
+                                {report.ai_summary_english || report.ai_summary || 'No English summary is available.'}
+                              </p>
+                            </section>
+                            <section className="min-w-0 rounded-lg bg-surface-container-low/60 p-3">
+                              <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">Conversational Hinglish summary</h4>
+                              <p className="whitespace-pre-line text-sm leading-6 text-on-surface">
+                                {report.ai_summary_hinglish || HINGLISH_FALLBACK}
+                              </p>
+                            </section>
+                          </div>
+
+                          <section>
+                            <h4 className="mb-3 text-sm font-semibold text-deep-navy">Key biomarkers detected</h4>
+                            <ReportMetricCards vitals={report.extracted_vitals} />
+                          </section>
+
+                          {Array.isArray(report.questions_for_doctor) && report.questions_for_doctor.some((question) => typeof question === 'string' && question.trim().length > 0) && (
+                            <section>
+                              <h4 className="mb-2 text-sm font-semibold text-deep-navy">Questions to discuss with a doctor</h4>
+                              <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-on-surface">
+                                {report.questions_for_doctor
+                                  .filter((question): question is string => typeof question === 'string' && question.trim().length > 0)
+                                  .map((question, index) => <li key={index}>{question}</li>)}
+                              </ul>
+                            </section>
+                          )}
+
+                          <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50/80 p-3.5">
+                            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" aria-hidden="true" />
+                            <div>
+                              <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-950">Medical disclaimer</h4>
+                              <p className="mt-1 text-xs leading-5 text-amber-950">{MEDICAL_DISCLAIMER}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
                     )}
                   </div>
                 </div>

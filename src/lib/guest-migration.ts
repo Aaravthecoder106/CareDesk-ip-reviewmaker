@@ -15,6 +15,8 @@
  * (0007_guest_migration.sql). The column mapping is 1:1; only names differ.
  */
 
+import type { Json } from './supabase/types'
+
 /** Migration window: 48h from guest upload (preview itself expires at 24h). */
 export const MIGRATION_WINDOW_MS = 48 * 60 * 60 * 1000
 
@@ -28,9 +30,13 @@ export interface GuestSession {
   mime_type: string | null
   file_name: string
   summary: string | null
+  summary_english?: string | null
+  summary_hinglish?: string | null
   lab_results: unknown
   medications: unknown
   conditions: unknown
+  extracted_vitals?: Json
+  questions_for_doctor?: Json
   created_at: string
   migrated_user_id?: string | null
 }
@@ -42,6 +48,10 @@ export interface ReportInsert {
   file_path: string
   mime_type: string | null
   ai_summary: string | null
+  ai_summary_english: string | null
+  ai_summary_hinglish: string | null
+  extracted_vitals: Json
+  questions_for_doctor: Json
   status: 'ready'
 }
 
@@ -148,7 +158,7 @@ function firstText(record: Record<string, unknown>, keys: string[]): string | nu
 
 /** True when the AI produced *something* — i.e. analysis finished. */
 export function analysisIsReady(session: GuestSession): boolean {
-  if (asText(session.summary)) return true
+  if (asText(session.summary_english) || asText(session.summary)) return true
   return (
     asRecordArray(session.lab_results).length > 0 ||
     asRecordArray(session.medications).length > 0 ||
@@ -263,7 +273,8 @@ export async function runMigration(
   const title = session.file_name?.trim() || 'Uploaded Report'
 
   // ── Duplicate guard: same user, same upload already in the library ──
-  const duplicateId = await db.findDuplicateReport(userId, title, session.summary ?? null)
+  const englishSummary = asText(session.summary_english) ?? asText(session.summary)
+  const duplicateId = await db.findDuplicateReport(userId, title, englishSummary)
   if (duplicateId) {
     const stamp = await db.markMigrated(session.token, userId, new Date(now).toISOString())
     if (!stamp.ok) warnings.push(`markMigrated: ${stamp.error}`)
@@ -300,7 +311,13 @@ export async function runMigration(
     title,
     file_path: finalPath,
     mime_type: session.mime_type || 'application/pdf',
-    ai_summary: session.summary ?? null,
+    ai_summary: englishSummary,
+    ai_summary_english: englishSummary,
+    ai_summary_hinglish: asText(session.summary_hinglish),
+    extracted_vitals: session.extracted_vitals ?? ({} as Json),
+    questions_for_doctor: session.questions_for_doctor ?? ([] as unknown as Json),
+    // medical_disclaimer is intentionally omitted: migration 0009's fixed
+    // database default supplies it; an LLM-provided value is never trusted.
     status: 'ready',
   }
   const inserted = await db.insertReport(reportRow)
@@ -352,6 +369,6 @@ async function findOwnReport(
   userId: string,
   session: GuestSession,
 ): Promise<string | null> {
-  const summary = session.summary ?? null
+  const summary = asText(session.summary_english) ?? asText(session.summary)
   return db.findDuplicateReport(userId, session.file_name?.trim() || 'Uploaded Report', summary)
 }

@@ -3,52 +3,15 @@ import { generateTextWithImages, generateText, parseJsonReply } from './gemini'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { regenerateAnalyticsForUser } from '@/lib/data/analytics'
 import { logger } from '@/lib/logger'
+import { IMAGE_REPORT_ANALYSIS_PROMPT, TEXT_REPORT_ANALYSIS_PROMPT } from './report-analysis-prompts'
+import {
+  MEDICAL_DISCLAIMER,
+  normalizeReportAnalysis,
+  type ReportAnalysis,
+} from '@/lib/reports/report-analysis'
+import type { Json } from '@/lib/supabase/types'
 
-interface AnalysisResult {
-  summary: string
-  labResults: { test_name: string; value: number | null; unit: string | null; flag: string | null }[]
-  medications: { name: string; dose: string | null; frequency: string | null }[]
-  conditions: { name: string; status: string | null }[]
-}
-
-const ANALYSIS_PROMPT = `You are a medical report analyzer. Analyze the attached medical report (image or PDF) and extract structured data from its ACTUAL content. Do not invent data that is not present.
-
-Return a JSON object with this exact structure (no markdown, just raw JSON):
-{
-  "summary": "A clear 2-3 sentence summary of the report",
-  "labResults": [
-    { "test_name": "Test Name", "value": 123.45, "unit": "mg/dL", "flag": "normal|high|low|critical" }
-  ],
-  "medications": [
-    { "name": "Medication Name", "dose": "10mg", "frequency": "twice daily" }
-  ],
-  "conditions": [
-    { "name": "Condition Name", "status": "active|resolved|chronic" }
-  ]
-}
-
-If a section has no data, use an empty array. For numeric values, use numbers not strings. For flags, use one of: normal, high, low, critical.`
-
-const TEXT_ANALYSIS_PROMPT = `You are a medical report analyzer. Below is the extracted text from a multi-page medical report. Analyze the text and extract structured data from its ACTUAL content. Do not invent data that is not present.
-
-Return a JSON object with this exact structure (no markdown, just raw JSON):
-{
-  "summary": "A clear 2-3 sentence summary of the report",
-  "labResults": [
-    { "test_name": "Test Name", "value": 123.45, "unit": "mg/dL", "flag": "normal|high|low|critical" }
-  ],
-  "medications": [
-    { "name": "Medication Name", "dose": "10mg", "frequency": "twice daily" }
-  ],
-  "conditions": [
-    { "name": "Condition Name", "status": "active|resolved|chronic" }
-  ]
-}
-
-If a section has no data, use an empty array. For numeric values, use numbers not strings. For flags, use one of: normal, high, low, critical.
-
-Extracted report text:
-`
+type AnalysisResult = ReportAnalysis
 
 /** Maximum inline data size (bytes) Gemini accepts for PDF inline data. */
 const GEMINI_INLINE_LIMIT_BYTES = 18 * 1024 * 1024 // 18 MB (safe margin under 20 MB hard limit)
@@ -117,14 +80,14 @@ export async function analyzeReport(
           ? extractedText.slice(0, maxChars) + '\n\n[... truncated, text exceeded character limit ...]'
           : extractedText
 
-        response = await generateText(TEXT_ANALYSIS_PROMPT + truncatedText)
+        response = await generateText(TEXT_REPORT_ANALYSIS_PROMPT + truncatedText)
       } else {
         // Text extraction failed — try inline anyway (may fail for very large files)
         logger.info({ reportId, fileSizeMB }, 'Text extraction yielded no content, trying inline data')
 
         const base64 = buffer.toString('base64')
         try {
-          response = await generateTextWithImages(ANALYSIS_PROMPT, [
+          response = await generateTextWithImages(IMAGE_REPORT_ANALYSIS_PROMPT, [
             { data: base64, mimeType },
           ])
         } catch (inlineErr) {
@@ -139,21 +102,21 @@ export async function analyzeReport(
     } else {
       // Small PDF or image: send inline (preserves visual data)
       const base64 = buffer.toString('base64')
-      response = await generateTextWithImages(ANALYSIS_PROMPT, [
+      response = await generateTextWithImages(IMAGE_REPORT_ANALYSIS_PROMPT, [
         { data: base64, mimeType },
       ])
     }
 
     let parsed: AnalysisResult
     try {
-      parsed = parseJsonReply<AnalysisResult>(response)
+      const modelOutput = parseJsonReply<unknown>(response)
+      parsed = normalizeReportAnalysis(modelOutput)
     } catch {
-      // Model returned prose instead of JSON — keep the text as the summary.
-      parsed = { summary: response, labResults: [], medications: [], conditions: [] }
+      // Keep the original model reply available to the user, but never weaken the
+      // fixed disclaimer or treat unparsed text as structured lab results.
+      logger.warn({ route: 'analyzeReport', reportId }, 'Model returned invalid JSON; preserving text as English fallback')
+      parsed = normalizeReportAnalysis({}, response)
     }
-    parsed.labResults ??= []
-    parsed.medications ??= []
-    parsed.conditions ??= []
 
     // Re-analysis must not duplicate: replace this report's labs wholesale.
     await admin.from('lab_results').delete().eq('report_id', reportId)
@@ -209,7 +172,15 @@ export async function analyzeReport(
 
     const { error: updateError } = await admin
       .from('reports')
-      .update({ ai_summary: parsed.summary, status: 'ready' })
+      .update({
+        ai_summary: parsed.summaryEnglish,
+        ai_summary_english: parsed.summaryEnglish,
+        ai_summary_hinglish: parsed.summaryHinglish,
+        extracted_vitals: parsed.extractedVitals as unknown as Json,
+        questions_for_doctor: parsed.questionsForDoctor as unknown as Json,
+        medical_disclaimer: MEDICAL_DISCLAIMER,
+        status: 'ready',
+      })
       .eq('id', reportId)
     if (updateError) throw new Error(`report update: ${updateError.message}`)
 

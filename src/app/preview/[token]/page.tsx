@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/logo'
-import { Loader2, Lock, FileText, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Shield } from 'lucide-react'
+import { Loader2, Lock, FileText, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Shield, Info } from 'lucide-react'
 import { savePreviewTokenForMigration } from '@/components/guest-migration'
+import { ReportMetricCards } from '@/components/reports/report-metric-cards'
+import { normalizeReportAnalysis } from '@/lib/reports/report-analysis'
 
 interface LabResult {
   test_name: string
@@ -28,9 +30,14 @@ interface Condition {
 interface PreviewData {
   fileName: string
   summary: string
+  summaryEnglish: string
+  summaryHinglish: string
   labResults: LabResult[]
   medications: Medication[]
   conditions: Condition[]
+  extractedVitals: unknown
+  questionsForDoctor: string[]
+  medicalDisclaimer: string
   createdAt: string
 }
 
@@ -63,13 +70,19 @@ export default function PreviewPage() {
       try {
         const raw = sessionStorage.getItem('previewData')
         if (raw) {
-          const d = JSON.parse(raw)
+          const d = JSON.parse(raw) as Record<string, unknown>
+          const analysis = normalizeReportAnalysis(d)
           setData({
-            fileName: d.fileName || 'Report',
-            summary: d.summary,
-            labResults: d.labResults || [],
-            medications: d.medications || [],
-            conditions: d.conditions || [],
+            fileName: typeof d.fileName === 'string' && d.fileName ? d.fileName : 'Report',
+            summary: analysis.summary,
+            summaryEnglish: analysis.summaryEnglish,
+            summaryHinglish: analysis.summaryHinglish,
+            labResults: analysis.labResults,
+            medications: analysis.medications,
+            conditions: analysis.conditions,
+            extractedVitals: analysis.extractedVitals,
+            questionsForDoctor: analysis.questionsForDoctor,
+            medicalDisclaimer: analysis.medicalDisclaimer,
             createdAt: new Date().toISOString(),
           })
           sessionStorage.removeItem('previewData')
@@ -89,7 +102,20 @@ export default function PreviewPage() {
         if (d.error) {
           setError(d.error)
         } else {
-          setData(d)
+          const analysis = normalizeReportAnalysis(d)
+          setData({
+            fileName: typeof d.fileName === 'string' && d.fileName ? d.fileName : 'Report',
+            summary: analysis.summary,
+            summaryEnglish: analysis.summaryEnglish,
+            summaryHinglish: analysis.summaryHinglish,
+            labResults: analysis.labResults,
+            medications: analysis.medications,
+            conditions: analysis.conditions,
+            extractedVitals: analysis.extractedVitals,
+            questionsForDoctor: analysis.questionsForDoctor,
+            medicalDisclaimer: analysis.medicalDisclaimer,
+            createdAt: typeof d.createdAt === 'string' ? d.createdAt : new Date().toISOString(),
+          })
           // Persist token for post-signup migration
           savePreviewTokenForMigration(token)
         }
@@ -161,16 +187,38 @@ export default function PreviewPage() {
           </p>
         </div>
 
-        {/* Summary — fully visible */}
-        <div className="glass-panel rounded-xl p-5 sm:p-6 mb-5 border border-electric-blue/10">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-electric-blue/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-electric-blue text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+        {/* Bilingual summaries */}
+        <section aria-label="Bilingual report summaries" className="mb-5 grid gap-4 sm:grid-cols-2">
+          <article className="glass-panel rounded-xl border border-electric-blue/10 p-5 sm:p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-electric-blue/10">
+                <span className="material-symbols-outlined text-lg text-electric-blue" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+              </div>
+              <h2 className="text-[16px] font-semibold text-deep-navy">English summary</h2>
             </div>
-            <h2 className="text-[16px] font-semibold text-deep-navy">AI Summary</h2>
+            <p className="text-[15px] leading-[24px] text-on-surface">{data.summaryEnglish}</p>
+          </article>
+          <article className="glass-panel rounded-xl border border-primary/10 p-5 sm:p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <span className="text-sm font-bold text-primary" aria-hidden="true">हि</span>
+              </div>
+              <h2 className="text-[16px] font-semibold text-deep-navy">Conversational Hinglish summary</h2>
+            </div>
+            <p className="text-[15px] leading-[24px] text-on-surface">{data.summaryHinglish}</p>
+          </article>
+        </section>
+
+        {/* Structured key biomarkers */}
+        <section className="glass-panel mb-5 rounded-xl p-5 sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-[16px] font-semibold text-deep-navy">Key biomarkers detected</h2>
+            <p className="mt-1 text-[13px] leading-5 text-on-surface-variant">
+              Values and ranges are shown only when extracted from the uploaded report. Missing values are not interpreted as zero.
+            </p>
           </div>
-          <p className="text-[15px] text-on-surface leading-[24px]">{data.summary}</p>
-        </div>
+          <ReportMetricCards vitals={data.extractedVitals} />
+        </section>
 
         {/* Lab Results */}
         <div className="glass-panel rounded-xl p-5 sm:p-6 mb-5">
@@ -178,8 +226,10 @@ export default function PreviewPage() {
           {visibleLabs.length > 0 ? (
             <div className="space-y-2.5">
               {visibleLabs.map((lab, i) => {
-                const Icon = FLAG_ICONS[lab.flag || 'normal'] || CheckCircle2
-                const colorClass = FLAG_COLORS[lab.flag || 'normal'] || FLAG_COLORS.normal
+                const Icon = lab.flag ? FLAG_ICONS[lab.flag] || Info : Info
+                const colorClass = lab.flag
+                  ? FLAG_COLORS[lab.flag] || 'text-on-surface-variant bg-surface-container'
+                  : 'text-on-surface-variant bg-surface-container'
                 return (
                   <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-surface-container-low/50">
                     <div className="flex items-center gap-2.5">
@@ -296,6 +346,24 @@ export default function PreviewPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Fixed disclaimer independent of model output */}
+        <section aria-label="Medical disclaimer" role="note" className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4 sm:p-5">
+          <Shield className="mt-0.5 h-5 w-5 shrink-0 text-amber-800" aria-hidden="true" />
+          <div>
+            <h2 className="text-[14px] font-semibold text-amber-950">Medical disclaimer</h2>
+            <p className="mt-1 text-[13px] leading-6 text-amber-950">{data.medicalDisclaimer}</p>
+          </div>
+        </section>
+
+        {data.questionsForDoctor.length > 0 && (
+          <section className="glass-panel mb-5 rounded-xl p-5 sm:p-6">
+            <h2 className="mb-3 text-[16px] font-semibold text-deep-navy">Questions to discuss with a doctor</h2>
+            <ul className="list-disc space-y-2 pl-5 text-[14px] leading-6 text-on-surface">
+              {data.questionsForDoctor.map((question, index) => <li key={index}>{question}</li>)}
+            </ul>
+          </section>
         )}
 
         {/* Signup CTA */}

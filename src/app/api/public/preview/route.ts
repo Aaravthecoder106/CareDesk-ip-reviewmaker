@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
+import { normalizeReportAnalysis } from '@/lib/reports/report-analysis'
 
 /**
  * GET /api/public/preview?token=xxx
@@ -32,13 +33,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'This preview has expired. Please upload again.' }, { status: 410 })
     }
 
-    return NextResponse.json({
-      fileName: data.file_name,
-      summary: data.summary,
+    const analysis = normalizeReportAnalysis({
+      summaryEnglish: data.summary_english ?? data.summary,
+      summaryHinglish: data.summary_hinglish,
       labResults: data.lab_results,
       medications: data.medications,
       conditions: data.conditions,
+      extractedVitals: data.extracted_vitals,
+      questionsForDoctor: data.questions_for_doctor,
+    })
+
+    return NextResponse.json({
+      fileName: data.file_name,
+      summary: analysis.summary,
+      summaryEnglish: analysis.summaryEnglish,
+      summaryHinglish: analysis.summaryHinglish,
+      labResults: analysis.labResults,
+      medications: analysis.medications,
+      conditions: analysis.conditions,
+      extractedVitals: analysis.extractedVitals,
+      questionsForDoctor: analysis.questionsForDoctor,
+      medicalDisclaimer: analysis.medicalDisclaimer,
       createdAt: data.created_at,
+    }, {
+      headers: { 'Cache-Control': 'private, no-store, max-age=0' },
     })
   } catch (err) {
     logger.error({ route: '/api/public/preview', err: err instanceof Error ? err.message : String(err) }, 'Preview fetch failed')
