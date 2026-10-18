@@ -29,13 +29,20 @@ type ChartPoint = { date: string; value: number }
 function chartSeries(readings: Reading[], type: Reading['vital_type']): ChartPoint[] {
   return readings
     .filter((reading) => reading.vital_type === type)
-    .map((reading) => ({
-      date: new Date(reading.measured_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }),
-      value: type === 'blood_pressure'
-        ? Number(reading.systolic)
-        : Number(type === 'glucose' ? reading.glucose_mg_dl : reading.weight_kg),
-    }))
-    .filter((point) => Number.isFinite(point.value))
+    .flatMap((reading) => {
+      const rawValue = type === 'blood_pressure'
+        ? reading.systolic
+        : type === 'glucose'
+          ? reading.glucose_mg_dl
+          : reading.weight_kg
+      if (rawValue === null || rawValue === undefined || rawValue === '') return []
+      const value = Number(rawValue)
+      if (!Number.isFinite(value)) return []
+      return [{
+        date: new Date(reading.measured_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }),
+        value,
+      }]
+    })
 }
 
 function TrendChart({ title, unit, data }: { title: string; unit: string; data: ChartPoint[] }) {
