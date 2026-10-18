@@ -138,7 +138,7 @@ export function ParentProfileCard({ profile }: { profile: CareOverviewRecipient 
               : t('careCard.noMedicationSchedule')}
         </p>
         <Link
-          href="/dashboard/care"
+          href={"/dashboard/care/" + profile.id}
           className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {t('careCard.manage')}
