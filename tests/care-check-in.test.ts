@@ -19,3 +19,13 @@ test('rejects values outside database constraints', () => {
   assert.throws(() => parseNaturalLanguageCheckIn('sugar 0'))
   assert.throws(() => parseNaturalLanguageCheckIn('weight 0 kg'))
 })
+
+test('rejects glucose values with unsupported units instead of storing them as mg/dL', () => {
+  assert.throws(() => parseNaturalLanguageCheckIn('blood sugar 5.5 mmol/L'), /Unsupported blood sugar unit/)
+  assert.throws(() => parseNaturalLanguageCheckIn('glucose 110 mg/L'), /Unsupported blood sugar unit/)
+})
+
+test('accepts glucose explicitly expressed in mg/dL', () => {
+  const result = parseNaturalLanguageCheckIn('blood sugar 110 mg/dL')
+  assert.deepEqual(result.readings, [{ vital_type: 'glucose', glucose_mg_dl: 110 }])
+})

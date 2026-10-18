@@ -5,8 +5,12 @@ import { parseNaturalLanguageCheckIn } from '@/lib/care/check-in'
 const NO_STORE = { 'Cache-Control': 'private, no-store, max-age=0' }
 
 // Care tables are introduced by migration 0008 and are not in the generated database type yet.
+type RecipientAccess =
+  | { error: string; status: 403 | 404 | 500 }
+  | { recipient: { id: string; full_name: string } }
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function authorizedRecipient(db: any, userId: string, recipientId: string) {
+async function authorizedRecipient(db: any, userId: string, recipientId: string): Promise<RecipientAccess> {
   const { data: recipient, error: recipientError } = await db
     .from('care_recipients')
     .select('id, full_name')
@@ -18,14 +22,14 @@ async function authorizedRecipient(db: any, userId: string, recipientId: string)
 
   const { data: consent, error: consentError } = await db
     .from('care_consents')
-    .select('status, accepted_at, revoked_at, created_at')
+    .select('status, accepted_at, revoked_at, created_at, scope')
     .eq('recipient_id', recipientId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (consentError) return { error: 'Unable to verify consent', status: 500 as const }
-  if (consent?.status !== 'active' || !consent.accepted_at || consent.revoked_at) {
+  if (consent?.status !== 'active' || !consent.accepted_at || consent.revoked_at || !Array.isArray(consent.scope) || !consent.scope.includes('vitals')) {
     return { error: 'Active parent consent is required before check-ins or health trends can be accessed.', status: 403 as const }
   }
 

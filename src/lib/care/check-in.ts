@@ -27,8 +27,12 @@ export function parseNaturalLanguageCheckIn(input: string): CheckInParseResult {
     readings.push({ vital_type: 'blood_pressure', systolic, diastolic })
   }
 
-  const glucose = text.match(/\b(?:blood sugar|blood glucose|glucose|sugar)\s*(?:is|:|=)?\s*(\d{1,4}(?:\.\d{1,2})?)\s*(?:mg\s*\/\s*dl)?\b/)
+  const glucose = text.match(/\b(?:blood sugar|blood glucose|glucose|sugar)\s*(?:is|:|=)?\s*(\d{1,4}(?:\.\d{1,2})?)\s*(mg\s*\/\s*dl|mmol\s*\/\s*l|mg\s*\/\s*l)?\b/)
   if (glucose) {
+    const unit = glucose[2]?.replace(/\s+/g, '').toLowerCase()
+    if (unit && unit !== 'mg/dl') {
+      throw new Error('Unsupported blood sugar unit. Use mg/dL or omit the unit.')
+    }
     const value = Number(glucose[1])
     if (!Number.isFinite(value) || value < 1 || value > 2000) {
       throw new Error('Blood sugar is outside the accepted input range. Please check the number.')
