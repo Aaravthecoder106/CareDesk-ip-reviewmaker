@@ -4,7 +4,9 @@ import { parseNaturalLanguageCheckIn } from '@/lib/care/check-in'
 
 const NO_STORE = { 'Cache-Control': 'private, no-store, max-age=0' }
 
-// Care tables are introduced by migration 0008 and are not in the generated database type yet.\n// eslint-disable-next-line @typescript-eslint/no-explicit-any\nasync function authorizedRecipient(db: any, userId: string, recipientId: string) {
+// Care tables are introduced by migration 0008 and are not in the generated database type yet.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function authorizedRecipient(db: any, userId: string, recipientId: string) {
   const { data: recipient, error: recipientError } = await db
     .from('care_recipients')
     .select('id, full_name')
